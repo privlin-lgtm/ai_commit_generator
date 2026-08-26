@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import re
 
-from ai_commit_generator.llm_client import LLMClient
 from ai_commit_generator.models import CommitMessage, CommitStyle, GitDiff
+from ai_commit_generator.ports import CompletionClient
 from ai_commit_generator.prompt_builder import SYSTEM_PROMPT, PromptBuilder
 
 _CONVENTIONAL_SUBJECT = re.compile(
@@ -21,7 +21,11 @@ class InvalidCommitMessageError(ValueError):
 class CommitMessageGenerator:
     """Coordinate prompt building, model completion, and output validation."""
 
-    def __init__(self, client: LLMClient, prompt_builder: PromptBuilder) -> None:
+    def __init__(
+        self,
+        client: CompletionClient,
+        prompt_builder: PromptBuilder,
+    ) -> None:
         self._client = client
         self._prompt_builder = prompt_builder
 

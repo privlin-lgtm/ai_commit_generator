@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Protocol
-
 from openai import OpenAI, OpenAIError
 
 from ai_commit_generator.config import Settings
@@ -11,14 +9,6 @@ from ai_commit_generator.config import Settings
 
 class LLMError(RuntimeError):
     """Raised when the language model request fails."""
-
-
-class LLMClient(Protocol):
-    """Interface implemented by commit-message language model clients."""
-
-    def complete(self, system_prompt: str, user_prompt: str) -> str:
-        """Return model-generated text."""
-        ...
 
 
 class OpenAICompatibleClient:

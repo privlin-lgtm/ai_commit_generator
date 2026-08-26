@@ -1,0 +1,24 @@
+"""Application ports implemented by infrastructure adapters."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Protocol
+
+from ai_commit_generator.models import GitDiff
+
+
+class DiffProvider(Protocol):
+    """Provide repository changes to the application layer."""
+
+    def collect(self, repository: Path | str = ".", *, staged: bool = True) -> GitDiff:
+        """Return the selected repository diff."""
+        ...
+
+
+class CompletionClient(Protocol):
+    """Complete prompts without exposing a provider-specific API."""
+
+    def complete(self, system_prompt: str, user_prompt: str) -> str:
+        """Return model-generated text."""
+        ...

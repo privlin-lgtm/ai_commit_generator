@@ -47,8 +47,11 @@ def test_passes_selected_style_to_prompt() -> None:
 @pytest.mark.parametrize(
     "response",
     [
+        "",
+        "   ",
         "Added a feature",
         "```text\nfeat: add feature\n```",
+        "feat: add feature\n```",
         "feat: " + ("a" * 80),
     ],
 )
@@ -58,3 +61,19 @@ def test_rejects_invalid_model_output(response: str) -> None:
 
     with pytest.raises(InvalidCommitMessageError):
         generator.generate(diff)
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        "feat!: remove legacy API",
+        "fix(parser): handle empty input",
+        "revert: restore stable behavior",
+    ],
+)
+def test_accepts_supported_conventional_subjects(response: str) -> None:
+    generator = CommitMessageGenerator(StubClient(response), PromptBuilder())
+
+    message = generator.generate(GitDiff("diff", True, "/repo"))
+
+    assert message.subject == response

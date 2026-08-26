@@ -8,13 +8,15 @@ API.
 ## Features
 
 - Safe, shell-free Git diff collection
+- Bounded-memory patch collection with complete change summaries
+- Explicit unresolved merge-conflict detection
 - OpenAI-compatible provider and local-model support
 - Environment-only credential configuration
 - Bounded prompts for large diffs
 - Conventional Commit format and subject-length validation
 - Conventional, concise, and detailed message styles
 - Rich terminal output with progress feedback and helpful errors
-- Modular, typed, and independently testable components
+- Clean Architecture boundaries with dependency-injected adapters
 
 ## Install
 
@@ -48,6 +50,17 @@ commitgen generate -C C:\path\to\repository
 
 The generated message is printed to standard output for review. The tool does
 not create a commit or modify the repository.
+
+Analyze staged or unstaged changes programmatically:
+
+```python
+from ai_commit_generator import GitDiffAnalyzer
+
+staged = GitDiffAnalyzer().analyze(".", staged=True)
+print(staged.as_dict())
+# {"files_changed": 4, "insertions": 122, "deletions": 18,
+#  "file_types": ["md", "py"]}
+```
 
 List styles or inspect non-secret configuration:
 

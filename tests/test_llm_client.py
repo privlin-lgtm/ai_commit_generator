@@ -11,14 +11,24 @@ from ai_commit_generator.llm_client import LLMError, OpenAICompatibleClient
 
 
 class FakeCompletions:
-    def __init__(self, *, content: str | None = "feat: add command") -> None:
+    def __init__(
+        self,
+        *,
+        content: str | None = "feat: add command",
+        include_choice: bool = True,
+    ) -> None:
         self.content = content
+        self.include_choice = include_choice
         self.arguments: dict[str, Any] = {}
 
     def create(self, **kwargs: Any) -> SimpleNamespace:
         self.arguments = kwargs
-        choice = SimpleNamespace(message=SimpleNamespace(content=self.content))
-        return SimpleNamespace(choices=[choice])
+        choices = []
+        if self.include_choice:
+            choices.append(
+                SimpleNamespace(message=SimpleNamespace(content=self.content))
+            )
+        return SimpleNamespace(choices=choices)
 
 
 class FakeOpenAI:
@@ -52,6 +62,17 @@ def test_rejects_empty_content(
     )
 
     with pytest.raises(LLMError, match="empty response"):
+        OpenAICompatibleClient(Settings(api_key="test")).complete("system", "user")
+
+
+def test_rejects_response_without_choices(monkeypatch: pytest.MonkeyPatch) -> None:
+    completions = FakeCompletions(include_choice=False)
+    monkeypatch.setattr(
+        "ai_commit_generator.llm_client.OpenAI",
+        lambda **kwargs: FakeOpenAI(completions, **kwargs),
+    )
+
+    with pytest.raises(LLMError, match="no choices"):
         OpenAICompatibleClient(Settings(api_key="test")).complete("system", "user")
 
 
