@@ -1,0 +1,53 @@
+"""OpenAI-compatible language model client."""
+
+from __future__ import annotations
+
+from typing import Protocol
+
+from openai import OpenAI, OpenAIError
+
+from ai_commit_generator.config import Settings
+
+
+class LLMError(RuntimeError):
+    """Raised when the language model request fails."""
+
+
+class LLMClient(Protocol):
+    """Interface implemented by commit-message language model clients."""
+
+    def complete(self, system_prompt: str, user_prompt: str) -> str:
+        """Return model-generated text."""
+        ...
+
+
+class OpenAICompatibleClient:
+    """Client for OpenAI and OpenAI-compatible chat completion APIs."""
+
+    def __init__(self, settings: Settings) -> None:
+        self._client = OpenAI(
+            api_key=settings.require_api_key(),
+            base_url=settings.base_url,
+            timeout=settings.timeout_seconds,
+        )
+        self._model = settings.model
+
+    def complete(self, system_prompt: str, user_prompt: str) -> str:
+        try:
+            response = self._client.chat.completions.create(
+                model=self._model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.2,
+            )
+        except OpenAIError as exc:
+            raise LLMError(f"Language model request failed: {exc}") from exc
+
+        if not response.choices:
+            raise LLMError("Language model returned no choices")
+        content = response.choices[0].message.content
+        if not content or not content.strip():
+            raise LLMError("Language model returned an empty response")
+        return content.strip()
