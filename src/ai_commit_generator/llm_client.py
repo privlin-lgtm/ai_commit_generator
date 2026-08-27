@@ -40,4 +40,4 @@ class OpenAICompatibleClient:
         content = response.choices[0].message.content
         if not content or not content.strip():
             raise LLMError("Language model returned an empty response")
-        return content.strip()
+        return content

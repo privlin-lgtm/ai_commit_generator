@@ -2,32 +2,38 @@
 
 from __future__ import annotations
 
-import re
+import logging
 
 from ai_commit_generator.models import CommitMessage, CommitStyle, GitDiff
-from ai_commit_generator.ports import CompletionClient
-from ai_commit_generator.prompt_builder import SYSTEM_PROMPT, PromptBuilder
-
-_CONVENTIONAL_SUBJECT = re.compile(
-    r"^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)"
-    r"(?:\([a-zA-Z0-9._/-]+\))?!?: .+"
+from ai_commit_generator.ports import (
+    CommitResponseValidator,
+    CompletionClient,
+    PromptBuilderPort,
+)
+from ai_commit_generator.prompt_builder import SYSTEM_PROMPT
+from ai_commit_generator.response_validator import (
+    ConventionalCommitResponseValidator,
+    InvalidCommitMessageError,
 )
 
-
-class InvalidCommitMessageError(ValueError):
-    """Raised when model output is not a valid commit message."""
+_LOGGER = logging.getLogger(__name__)
+_LOGGER.addHandler(logging.NullHandler())
 
 
 class CommitMessageGenerator:
-    """Coordinate prompt building, model completion, and output validation."""
+    """Build, complete, validate, and return a commit message."""
 
     def __init__(
         self,
         client: CompletionClient,
-        prompt_builder: PromptBuilder,
+        prompt_builder: PromptBuilderPort,
+        validator: CommitResponseValidator | None = None,
+        logger: logging.Logger | None = None,
     ) -> None:
         self._client = client
         self._prompt_builder = prompt_builder
+        self._validator = validator or ConventionalCommitResponseValidator()
+        self._logger = logger or _LOGGER
 
     def generate(
         self,
@@ -36,28 +42,40 @@ class CommitMessageGenerator:
         instructions: str | None = None,
         style: CommitStyle = CommitStyle.CONVENTIONAL,
     ) -> CommitMessage:
-        prompt = self._prompt_builder.build(diff, instructions, style)
-        raw = self._client.complete(SYSTEM_PROMPT, prompt)
-        return self._parse(raw)
-
-    @staticmethod
-    def _parse(raw: str) -> CommitMessage:
-        cleaned = raw.strip()
-        if cleaned.startswith("```") or cleaned.endswith("```"):
-            raise InvalidCommitMessageError(
-                "Language model returned Markdown instead of a plain commit message"
+        """Generate one validated message from a parsed Git diff."""
+        metadata = {
+            "style": style.value,
+            "staged": diff.staged,
+            "diff_chars": len(diff.content),
+            "summary_chars": len(diff.summary),
+            "diff_truncated": diff.truncated,
+            "summary_truncated": diff.summary_truncated,
+            "has_instructions": instructions is not None,
+        }
+        self._logger.info("commit_generation_started", extra=metadata)
+        try:
+            prompt = self._prompt_builder.build(diff, instructions, style)
+            response = self._client.complete(SYSTEM_PROMPT, prompt)
+            message = self._validator.validate(response)
+        except Exception as exc:
+            self._logger.warning(
+                "commit_generation_failed",
+                extra={**metadata, "error_type": type(exc).__name__},
             )
+            raise
 
-        lines = cleaned.splitlines()
-        subject = lines[0].strip() if lines else ""
-        if not _CONVENTIONAL_SUBJECT.fullmatch(subject):
-            raise InvalidCommitMessageError(
-                "Generated subject does not follow Conventional Commits"
-            )
-        if len(subject) > 72:
-            raise InvalidCommitMessageError(
-                f"Generated subject is {len(subject)} characters; maximum is 72"
-            )
+        self._logger.info(
+            "commit_generation_succeeded",
+            extra={
+                **metadata,
+                "subject_chars": len(message.subject),
+                "body_chars": len(message.body or ""),
+            },
+        )
+        return message
 
-        body = "\n".join(lines[1:]).strip() or None
-        return CommitMessage(subject=subject, body=body)
+
+__all__ = [
+    "CommitMessageGenerator",
+    "InvalidCommitMessageError",
+]

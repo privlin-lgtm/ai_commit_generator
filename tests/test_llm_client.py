@@ -51,6 +51,23 @@ def test_completes_with_configured_model(monkeypatch: pytest.MonkeyPatch) -> Non
     assert completions.arguments["messages"][1]["content"] == "user"
 
 
+def test_preserves_provider_whitespace_for_strict_validation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    completions = FakeCompletions(content=" feat: add command ")
+    monkeypatch.setattr(
+        "ai_commit_generator.llm_client.OpenAI",
+        lambda **kwargs: FakeOpenAI(completions, **kwargs),
+    )
+
+    result = OpenAICompatibleClient(Settings(api_key="test")).complete(
+        "system",
+        "user",
+    )
+
+    assert result == " feat: add command "
+
+
 @pytest.mark.parametrize("content", [None, "  "])
 def test_rejects_empty_content(
     monkeypatch: pytest.MonkeyPatch, content: str | None

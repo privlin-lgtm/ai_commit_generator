@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
@@ -137,6 +138,7 @@ def create_app(dependencies: CliDependencies | None = None) -> typer.Typer:
             GitError,
             LLMError,
             InvalidCommitMessageError,
+            ValidationError,
         ) as exc:
             print_error(exc)
             raise typer.Exit(code=1) from exc

@@ -2,13 +2,20 @@
 
 The package follows a small Clean Architecture dependency flow:
 
-1. `models.py` contains immutable domain values and commit-style behavior.
-2. `ports.py` defines provider-neutral diff and completion protocols.
-3. `commit_generator.py` validates model output without depending on OpenAI,
-   Git, or Typer.
-4. `application.py` implements the generate-commit use case against those
+1. `models.py` contains immutable Pydantic v2 domain values, validation, JSON
+   serialization, and commit-style behavior.
+2. `ports.py` defines provider-neutral diff, prompt-building, completion, and
+   response-validation protocols.
+3. `commit_generator.py` is a focused orchestration service. It builds the
+   prompt, invokes a `CompletionClient`, delegates strict response validation,
+   and records metadata-only lifecycle logs without depending on OpenAI, Git,
+   or Typer.
+4. `response_validator.py` translates provider text into a validated
+   `CommitMessage` or an actionable `InvalidCommitMessageError`. It does not
+   silently trim, repair, or unwrap Markdown.
+5. `application.py` implements the repository-level generate-commit use case against those
    protocols.
-5. The Git infrastructure is split by responsibility:
+6. The Git infrastructure is split by responsibility:
    - `git_command.py` provides timeout-bounded, shell-free execution with
      bounded stdout and stderr reads.
    - `git_repository.py` validates roots and detects unresolved conflicts.
@@ -17,10 +24,30 @@ The package follows a small Clean Architecture dependency flow:
      destination file types.
    - `git_diff.py` preserves the public collector/analyzer facades and
      orchestrates injected collaborators.
-6. `llm_client.py` is the OpenAI-compatible infrastructure adapter.
-7. `cli.py` is both the Typer presentation adapter and composition root. Its
+7. `llm_client.py` is the OpenAI-compatible infrastructure adapter. It returns
+   plain text through the provider-neutral port and exposes no SDK models to
+   the application service.
+8. `cli.py` is both the Typer presentation adapter and composition root. Its
    dependencies are injected through `CliDependencies`.
-8. `config.py` owns normalized, validated environment configuration.
+9. `config.py` owns normalized, validated environment configuration.
+
+## Generation pipeline
+
+```text
+GitDiff -> PromptBuilderPort -> CompletionClient
+        -> CommitResponseValidator -> CommitMessage
+```
+
+`CommitMessageGenerator` receives each collaborator through its constructor.
+The default validator preserves the original two-argument constructor, while
+tests and alternative deployments can inject independent implementations.
+Pydantic validates both inputs and final outputs at the domain boundary.
+
+The service logs `commit_generation_started`, `commit_generation_succeeded`,
+or one `commit_generation_failed` event. Structured fields contain only
+bounded lengths, style, staged/truncation flags, and exception class names.
+Content, paths, instructions, responses, credentials, and exception messages
+are deliberately excluded.
 
 ## Git adapter behavior
 

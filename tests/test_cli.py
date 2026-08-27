@@ -9,7 +9,7 @@ from ai_commit_generator.application import GenerateCommitRequest
 from ai_commit_generator.cli import CliDependencies, create_app
 from ai_commit_generator.config import ConfigurationError, Settings
 from ai_commit_generator.llm_client import LLMError
-from ai_commit_generator.models import CommitMessage
+from ai_commit_generator.models import CommitMessage, CommitStyle
 
 runner = CliRunner()
 
@@ -80,7 +80,7 @@ def test_generate_passes_typed_options(tmp_path: Path) -> None:
     assert "Reject expired access tokens." in result.stdout
     assert use_case.request == GenerateCommitRequest(
         repository=tmp_path.resolve(),
-        style="detailed",
+        style=CommitStyle.DETAILED,
         instructions="Focus on authentication",
     )
 
@@ -113,6 +113,21 @@ def test_generate_rejects_invalid_style_before_execution(tmp_path: Path) -> None
 
     assert result.exit_code == 2
     assert "Invalid value" in result.stderr
+    assert use_case.request is None
+
+
+def test_generate_reports_invalid_request_without_traceback(tmp_path: Path) -> None:
+    use_case = StubUseCase()
+    app = create_app(_dependencies(use_case))
+
+    result = runner.invoke(
+        app,
+        ["generate", "-C", str(tmp_path), "--instructions", " padded "],
+    )
+
+    assert result.exit_code == 1
+    assert "instructions must not have surrounding whitespace" in result.stderr
+    assert "Traceback" not in result.stderr
     assert use_case.request is None
 
 
