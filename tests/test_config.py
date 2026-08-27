@@ -62,10 +62,17 @@ def test_rejects_empty_model(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.parametrize(
     "base_url",
-    ["file:///tmp/model", "localhost:1234", "http://"],
+    [
+        "file:///tmp/model",
+        "localhost:1234",
+        "http://",
+        "https://token@example.com/v1",
+        "https://example.com/v1?api_key=secret",
+        "https://example.com/v1#secret",
+    ],
 )
 def test_rejects_unsafe_base_url_scheme(base_url: str) -> None:
-    with pytest.raises(ConfigurationError, match="HTTP or HTTPS URL"):
+    with pytest.raises(ConfigurationError, match="credential-free"):
         Settings(api_key="test", base_url=base_url)
 
 

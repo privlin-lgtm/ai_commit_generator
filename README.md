@@ -8,7 +8,7 @@ API.
 ## Features
 
 - Safe, shell-free Git diff collection
-- Bounded-memory patch collection with complete change summaries
+- Bounded-memory patch, summary, metadata, and error handling
 - Explicit unresolved merge-conflict detection
 - OpenAI-compatible provider and local-model support
 - Environment-only credential configuration
@@ -62,6 +62,17 @@ print(staged.as_dict())
 #  "file_types": ["md", "py"]}
 ```
 
+`GitDiffCollector` and `GitDiffAnalyzer` intentionally differ when the selected
+diff is empty: collection raises `NoChangesError` because there is no prompt to
+generate, while analysis returns zero counts. Analysis is exact; if complete
+`--numstat` metadata exceeds its safety limit it raises `GitOutputLimitError`
+instead of returning partial statistics.
+
+File types use the destination path for renames, the final lowercase extension
+for names with multiple dots, and `extensionless` for dotfiles, names without
+an extension, Gitlinks, and names ending in a dot. Binary files retain their
+type and contribute zero insertions and deletions.
+
 List styles or inspect non-secret configuration:
 
 ```powershell
@@ -84,7 +95,15 @@ pytest
 
 Never store API keys in the repository. Use environment variables or your
 platform's secret manager. Diff contents are sent to the configured provider;
-review provider data policies before using this tool with sensitive code.
+review provider data policies before using this tool with sensitive code. The
+configured base URL is visible in `commitgen config`, so URLs containing
+credentials, query strings, or fragments are rejected.
+
+Repository content is untrusted input. Git external diff and text-conversion
+helpers are disabled, commands never use a shell, and prompt data is JSON
+encoded behind an explicit trust boundary. These controls reduce command and
+prompt-injection risk, but no prompt can make an LLM fully immune to adversarial
+repository content. Review generated messages before use.
 
 ## License
 

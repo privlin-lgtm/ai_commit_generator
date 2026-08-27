@@ -1,74 +1,115 @@
 from __future__ import annotations
 
-import subprocess
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
 
+from ai_commit_generator.git_command import GitCommandResult
 from ai_commit_generator.git_diff import (
-    GitCommandError,
     GitDiffCollector,
+    GitOutputLimitError,
+    NoChangesError,
 )
 
 
-def _completed(
-    stdout: str = "", stderr: str = "", code: int = 0
-) -> subprocess.CompletedProcess[str]:
-    return subprocess.CompletedProcess(["git"], code, stdout, stderr)
+class StubExecutor:
+    def __init__(
+        self,
+        repository: Path,
+        *,
+        patch: GitCommandResult | None = None,
+        stat: GitCommandResult | None = None,
+        conflicts: GitCommandResult | None = None,
+    ) -> None:
+        self.repository = repository
+        self.patch = patch or GitCommandResult("diff")
+        self.stat = stat or GitCommandResult("file.py | 1 +")
+        self.conflicts = conflicts or GitCommandResult("")
+        self.calls: list[tuple[tuple[str, ...], int]] = []
+
+    def run(
+        self,
+        args: Sequence[str],
+        cwd: Path,
+        *,
+        max_chars: int = 1_000_000,
+    ) -> GitCommandResult:
+        command = tuple(args)
+        self.calls.append((command, max_chars))
+        if "rev-parse" in command:
+            return GitCommandResult(f"{self.repository}\n")
+        if "--diff-filter=U" in command:
+            return self.conflicts
+        if "--stat" in command:
+            return self.stat
+        return self.patch
 
 
-def test_collects_staged_diff(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    calls: list[list[str]] = []
+def test_collects_staged_diff_with_safe_commands(tmp_path: Path) -> None:
+    executor = StubExecutor(tmp_path)
 
-    def fake_run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-        calls.append(args)
-        stdout = kwargs["stdout"]
-        assert hasattr(stdout, "write")
-        if "rev-parse" in args:
-            stdout.write(f"{tmp_path}\n")
-        elif "--unified=3" in args:
-            stdout.write("diff --git a/file.py b/file.py\n")
-        elif "--stat" in args:
-            stdout.write(" file.py | 1 +\n")
-        return _completed()
+    result = GitDiffCollector(
+        max_diff_chars=1_000,
+        executor=executor,
+    ).collect(tmp_path, staged=True)
 
-    monkeypatch.setattr(subprocess, "run", fake_run)
-
-    result = GitDiffCollector().collect(tmp_path, staged=True)
-
-    assert result.staged is True
-    assert result.content.startswith("diff --git")
+    assert result.content == "diff"
     assert result.summary == "file.py | 1 +"
-    assert "--cached" in calls[2]
-    assert calls[2][-1] == "--"
-    assert "--no-color" in calls[3]
-    assert "--stat" in calls[3]
+    patch_command, patch_limit = executor.calls[2]
+    stat_command, stat_limit = executor.calls[3]
+    for command in (patch_command, stat_command):
+        assert "--cached" in command
+        assert "--no-ext-diff" in command
+        assert "--no-textconv" in command
+        assert "--no-color" in command
+    assert patch_limit == 1_000
+    assert stat_limit == 1_000
 
 
-def test_reports_missing_git(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    def fake_run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-        raise FileNotFoundError
+def test_collects_unstaged_diff_without_cached_option(tmp_path: Path) -> None:
+    executor = StubExecutor(tmp_path)
 
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    GitDiffCollector(executor=executor).collect(tmp_path, staged=False)
 
-    with pytest.raises(GitCommandError, match="Git executable"):
-        GitDiffCollector().collect(tmp_path)
+    assert "--cached" not in executor.calls[2][0]
+    assert "--cached" not in executor.calls[3][0]
 
 
-def test_reports_git_timeout(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    def fake_run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-        raise subprocess.TimeoutExpired(args, 1)
+def test_rejects_empty_selected_diff(tmp_path: Path) -> None:
+    collector = GitDiffCollector(
+        executor=StubExecutor(tmp_path, patch=GitCommandResult("")),
+    )
 
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    with pytest.raises(NoChangesError, match="No staged changes"):
+        collector.collect(tmp_path)
 
-    with pytest.raises(GitCommandError, match="timed out"):
-        GitDiffCollector(timeout_seconds=1).collect(tmp_path)
+
+def test_preserves_patch_and_stat_truncation_flags(tmp_path: Path) -> None:
+    collector = GitDiffCollector(
+        executor=StubExecutor(
+            tmp_path,
+            patch=GitCommandResult("patch", truncated=True),
+            stat=GitCommandResult("summary", truncated=True),
+        ),
+    )
+
+    result = collector.collect(tmp_path)
+
+    assert result.truncated is True
+    assert result.summary_truncated is True
+
+
+def test_rejects_truncated_conflict_metadata(tmp_path: Path) -> None:
+    collector = GitDiffCollector(
+        executor=StubExecutor(
+            tmp_path,
+            conflicts=GitCommandResult("file.py\0", truncated=True),
+        ),
+    )
+
+    with pytest.raises(GitOutputLimitError, match="Unmerged file metadata"):
+        collector.collect(tmp_path)
 
 
 @pytest.mark.parametrize(

@@ -37,9 +37,13 @@ class Settings:
             if (
                 parsed_url.scheme not in {"http", "https"}
                 or not parsed_url.netloc
+                or parsed_url.username
+                or parsed_url.password
+                or parsed_url.query
+                or parsed_url.fragment
             ):
                 raise ConfigurationError(
-                    "AI_COMMIT_BASE_URL must be a valid HTTP or HTTPS URL"
+                    "AI_COMMIT_BASE_URL must be a credential-free HTTP or HTTPS URL"
                 )
 
         object.__setattr__(self, "api_key", api_key)

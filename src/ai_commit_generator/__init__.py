@@ -5,7 +5,7 @@ from ai_commit_generator.application import (
     GenerateCommitRequest,
 )
 from ai_commit_generator.commit_generator import CommitMessageGenerator
-from ai_commit_generator.git_diff import GitDiffAnalyzer
+from ai_commit_generator.git_diff import GitDiffAnalyzer, GitOutputLimitError
 from ai_commit_generator.models import (
     CommitMessage,
     CommitStyle,
@@ -20,5 +20,6 @@ __all__ = [
     "GenerateCommitRequest",
     "GitDiffAnalysis",
     "GitDiffAnalyzer",
+    "GitOutputLimitError",
 ]
 __version__ = "0.2.0"
