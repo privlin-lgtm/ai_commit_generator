@@ -49,9 +49,11 @@ class RecordingClient:
         self.error = error
         self.system_prompt = ""
         self.user_prompt = ""
+        self.calls = 0
 
     def complete(self, system_prompt: str, user_prompt: str) -> str:
         self.events.append("client")
+        self.calls += 1
         self.system_prompt = system_prompt
         self.user_prompt = user_prompt
         if self.error:
@@ -70,10 +72,18 @@ class RecordingValidator:
         self.message = message or CommitMessage("feat: add command")
         self.error = error
         self.response = ""
+        self.calls = 0
+        self.style: CommitStyle | None = None
 
-    def validate(self, response: str) -> CommitMessage:
+    def validate(
+        self,
+        response: str,
+        style: CommitStyle = CommitStyle.CONVENTIONAL,
+    ) -> CommitMessage:
         self.events.append("validator")
+        self.calls += 1
         self.response = response
+        self.style = style
         if self.error:
             raise self.error
         return self.message
@@ -113,6 +123,7 @@ def test_orchestrates_injected_dependencies_in_order(
     assert prompt_builder.style is CommitStyle.DETAILED
     assert client.user_prompt == "bounded prompt"
     assert validator.response == "provider response"
+    assert validator.style is CommitStyle.DETAILED
     assert [record.message for record in caplog.records] == [
         "commit_generation_started",
         "commit_generation_succeeded",
@@ -147,6 +158,39 @@ def test_default_logger_does_not_emit_user_facing_noise(
         generator.generate(GitDiff("diff", True, "/repo"))
 
     assert capsys.readouterr().err == ""
+
+
+class FailingLogger(logging.Logger):
+    def __init__(self, name: str) -> None:
+        super().__init__(name, level=logging.DEBUG)
+
+    def handle(self, record: logging.LogRecord) -> None:
+        raise RuntimeError("logging failed")
+
+
+def test_logger_failure_never_breaks_successful_generation() -> None:
+    events: list[str] = []
+    generator = CommitMessageGenerator(
+        RecordingClient(events, "feat: preserve generation"),
+        RecordingPromptBuilder(events),
+        logger=FailingLogger("failing"),
+    )
+
+    message = generator.generate(GitDiff("diff", True, "/repo"))
+
+    assert message.subject == "feat: preserve generation"
+
+
+def test_logger_failure_never_masks_original_failure() -> None:
+    events: list[str] = []
+    generator = CommitMessageGenerator(
+        RecordingClient(events, error=LLMError("provider failed")),
+        RecordingPromptBuilder(events),
+        logger=FailingLogger("failing"),
+    )
+
+    with pytest.raises(LLMError, match="provider failed"):
+        generator.generate(GitDiff("diff", True, "/repo"))
 
 
 @pytest.mark.parametrize(
@@ -195,6 +239,13 @@ def test_propagates_typed_dependency_failures_and_logs_once(
     assert "/private/repo" not in caplog.text
     assert str(error) not in caplog.text
 
+    expected_events = {
+        "prompt": ["prompt"],
+        "client": ["prompt", "client"],
+        "validator": ["prompt", "client", "validator"],
+    }
+    assert events == expected_events[dependency]
+
 
 def test_logging_never_contains_diff_instructions_or_provider_response(
     caplog: pytest.LogCaptureFixture,
@@ -219,3 +270,143 @@ def test_logging_never_contains_diff_instructions_or_provider_response(
     assert "confidential instruction" not in caplog.text
     assert "/users/private" not in caplog.text
     assert "safe output" not in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("style", "response"),
+    [
+        (CommitStyle.CONCISE, "Add command"),
+        (CommitStyle.CONVENTIONAL, "feat: add command"),
+        (CommitStyle.DETAILED, "Add the command and expose it to users."),
+    ],
+)
+def test_supports_every_style(style: CommitStyle, response: str) -> None:
+    events: list[str] = []
+    prompt = RecordingPromptBuilder(events)
+    generator = CommitMessageGenerator(
+        RecordingClient(events, response),
+        prompt,
+    )
+
+    generator.generate(GitDiff("diff", True, "/repo"), style=style)
+
+    assert prompt.style is style
+
+
+def test_reuses_service_without_state_leaking_between_calls() -> None:
+    events: list[str] = []
+    client = RecordingClient(events, "feat: reusable service")
+    validator = RecordingValidator(events)
+    generator = CommitMessageGenerator(
+        client,
+        RecordingPromptBuilder(events),
+        validator,
+    )
+
+    first = generator.generate(GitDiff("first", True, "/repo"))
+    second = generator.generate(GitDiff("second", False, "/repo"))
+
+    assert first.subject == second.subject
+    assert client.calls == 2
+    assert validator.calls == 2
+
+
+def test_provider_can_be_switched_without_changing_service() -> None:
+    first_events: list[str] = []
+    second_events: list[str] = []
+    prompt = RecordingPromptBuilder(first_events)
+    first = CommitMessageGenerator(
+        RecordingClient(first_events, "feat: first provider"),
+        prompt,
+    )
+    second = CommitMessageGenerator(
+        RecordingClient(second_events, "fix: second provider"),
+        RecordingPromptBuilder(second_events),
+    )
+
+    assert first.generate(GitDiff("diff", True, "/repo")).subject == (
+        "feat: first provider"
+    )
+    assert second.generate(GitDiff("diff", True, "/repo")).subject == (
+        "fix: second provider"
+    )
+
+
+@pytest.mark.parametrize(
+    ("diff", "instructions", "style", "error"),
+    [
+        (object(), None, CommitStyle.CONVENTIONAL, TypeError),
+        (GitDiff("diff", True, "/repo"), None, "unknown", ValueError),
+        (GitDiff("diff", True, "/repo"), "", CommitStyle.CONVENTIONAL, ValueError),
+        (
+            GitDiff("diff", True, "/repo"),
+            " padded ",
+            CommitStyle.CONVENTIONAL,
+            ValueError,
+        ),
+        (
+            GitDiff("diff", True, "/repo"),
+            "x" * 4_001,
+            CommitStyle.CONVENTIONAL,
+            ValueError,
+        ),
+        (
+            GitDiff("diff", True, "/repo"),
+            "contains\x00nul",
+            CommitStyle.CONVENTIONAL,
+            ValueError,
+        ),
+        (GitDiff("diff", True, "/repo"), 1, CommitStyle.CONVENTIONAL, TypeError),
+    ],
+)
+def test_rejects_invalid_public_inputs_before_dependencies(
+    diff: object,
+    instructions: object,
+    style: object,
+    error: type[Exception],
+) -> None:
+    events: list[str] = []
+    generator = CommitMessageGenerator(
+        RecordingClient(events),
+        RecordingPromptBuilder(events),
+    )
+
+    with pytest.raises(error):
+        generator.generate(  # type: ignore[arg-type]
+            diff,
+            instructions=instructions,
+            style=style,
+        )
+
+    assert events == []
+
+
+def test_logs_fixed_metadata_cardinality_for_truncated_diff(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    events: list[str] = []
+    logger = logging.getLogger("tests.generator.metadata")
+    generator = CommitMessageGenerator(
+        RecordingClient(events),
+        RecordingPromptBuilder(events),
+        logger=logger,
+    )
+
+    with caplog.at_level(logging.INFO, logger=logger.name):
+        generator.generate(
+            GitDiff("patch", True, "/repo", "stat", True, True),
+        )
+
+    custom_keys = {
+        "style",
+        "staged",
+        "diff_chars",
+        "summary_chars",
+        "diff_truncated",
+        "summary_truncated",
+        "has_instructions",
+    }
+    start = caplog.records[0]
+    assert custom_keys <= set(start.__dict__)
+    assert start.diff_truncated is True
+    assert start.summary_truncated is True

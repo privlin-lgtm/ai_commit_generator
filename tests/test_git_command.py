@@ -57,6 +57,44 @@ def test_bounds_success_output(
     assert result.truncated is True
 
 
+def test_exact_byte_limit_is_not_truncated(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    def fake_run(
+        args: tuple[str, ...],
+        **kwargs: object,
+    ) -> subprocess.CompletedProcess[bytes]:
+        kwargs["stdout"].write(b"x" * 10)  # type: ignore[union-attr]
+        return subprocess.CompletedProcess(args, 0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = GitCommandRunner().run(("diff",), tmp_path, max_chars=10)
+
+    assert result.output == "x" * 10
+    assert result.truncated is False
+
+
+def test_multibyte_output_limit_is_measured_in_bytes(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    def fake_run(
+        args: tuple[str, ...],
+        **kwargs: object,
+    ) -> subprocess.CompletedProcess[bytes]:
+        kwargs["stdout"].write("éé".encode())  # type: ignore[union-attr]
+        return subprocess.CompletedProcess(args, 0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = GitCommandRunner().run(("diff",), tmp_path, max_chars=3)
+
+    assert result.truncated is True
+    assert result.output == "é�"
+
+
 def test_bounds_failure_stderr(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

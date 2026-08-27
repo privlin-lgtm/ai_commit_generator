@@ -44,6 +44,10 @@ class PromptBuilderPort(Protocol):
 class CommitResponseValidator(Protocol):
     """Validate provider text into a final domain message."""
 
-    def validate(self, response: str) -> CommitMessage:
+    def validate(
+        self,
+        response: str,
+        style: CommitStyle = CommitStyle.CONVENTIONAL,
+    ) -> CommitMessage:
         """Return a valid message or raise an actionable typed error."""
         ...

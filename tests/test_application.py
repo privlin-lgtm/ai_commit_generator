@@ -31,7 +31,7 @@ class StubClient:
 
     def complete(self, system_prompt: str, user_prompt: str) -> str:
         self.prompt = user_prompt
-        return "feat(core): add use case"
+        return "Add the use case boundary"
 
 
 def test_use_case_coordinates_ports_without_infrastructure(tmp_path: Path) -> None:
@@ -50,7 +50,7 @@ def test_use_case_coordinates_ports_without_infrastructure(tmp_path: Path) -> No
         )
     )
 
-    assert message.subject == "feat(core): add use case"
+    assert message.subject == "Add the use case boundary"
     assert provider.repository == tmp_path
     assert provider.staged is True
     assert "Style: concise" in client.prompt

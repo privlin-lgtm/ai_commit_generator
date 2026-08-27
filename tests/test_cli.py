@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 from ai_commit_generator.application import GenerateCommitRequest
 from ai_commit_generator.cli import CliDependencies, create_app
 from ai_commit_generator.config import ConfigurationError, Settings
+from ai_commit_generator.git_diff import NoChangesError
 from ai_commit_generator.llm_client import LLMError
 from ai_commit_generator.models import CommitMessage, CommitStyle
 
@@ -56,8 +57,9 @@ def test_styles_lists_available_styles() -> None:
 def test_generate_passes_typed_options(tmp_path: Path) -> None:
     use_case = StubUseCase(
         CommitMessage(
-            "feat(auth): add JWT token validation",
+            "Protect API endpoints with JWT token validation.",
             "Reject expired access tokens.",
+            CommitStyle.DETAILED,
         )
     )
     app = create_app(_dependencies(use_case))
@@ -76,7 +78,7 @@ def test_generate_passes_typed_options(tmp_path: Path) -> None:
     )
 
     assert result.exit_code == 0
-    assert "feat(auth): add JWT token validation" in result.stdout
+    assert "Protect API endpoints with JWT token validation." in result.stdout
     assert "Reject expired access tokens." in result.stdout
     assert use_case.request == GenerateCommitRequest(
         repository=tmp_path.resolve(),
@@ -155,6 +157,17 @@ def test_generate_reports_provider_error(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "Error: provider unavailable" in result.stderr
+
+
+def test_generate_reports_empty_repository_error(tmp_path: Path) -> None:
+    app = create_app(
+        _dependencies(StubUseCase(error=NoChangesError("No staged changes found")))
+    )
+
+    result = runner.invoke(app, ["generate", "-C", str(tmp_path)])
+
+    assert result.exit_code == 1
+    assert "Error: No staged changes found" in result.stderr
 
 
 def _dependencies(use_case: StubUseCase | None = None) -> CliDependencies:

@@ -10,7 +10,7 @@ The package follows a small Clean Architecture dependency flow:
    prompt, invokes a `CompletionClient`, delegates strict response validation,
    and records metadata-only lifecycle logs without depending on OpenAI, Git,
    or Typer.
-4. `response_validator.py` translates provider text into a validated
+4. `response_validator.py` translates provider text and the selected style into a validated
    `CommitMessage` or an actionable `InvalidCommitMessageError`. It does not
    silently trim, repair, or unwrap Markdown.
 5. `application.py` implements the repository-level generate-commit use case against those
@@ -34,20 +34,41 @@ The package follows a small Clean Architecture dependency flow:
 ## Generation pipeline
 
 ```text
-GitDiff -> PromptBuilderPort -> CompletionClient
-        -> CommitResponseValidator -> CommitMessage
+GitDiff + CommitStyle -> PromptBuilderPort -> CompletionClient
+                      -> CommitResponseValidator(style) -> CommitMessage
 ```
 
 `CommitMessageGenerator` receives each collaborator through its constructor.
-The default validator preserves the original two-argument constructor, while
-tests and alternative deployments can inject independent implementations.
-Pydantic validates both inputs and final outputs at the domain boundary.
+The default validator preserves one-argument `validate(response)` calls through
+its conventional-style default. The validator port itself now receives
+`CommitStyle`; custom validator implementations must adopt that `0.4.0` contract
+so concise and detailed output cannot bypass style policy. Pydantic validates
+both inputs and final outputs at the domain boundary.
 
 The service logs `commit_generation_started`, `commit_generation_succeeded`,
 or one `commit_generation_failed` event. Structured fields contain only
 bounded lengths, style, staged/truncation flags, and exception class names.
 Content, paths, instructions, responses, credentials, and exception messages
-are deliberately excluded.
+are deliberately excluded. Logging is best-effort: exceptions from injected
+handlers are isolated at the logging call, so they cannot replace a successful
+generation or mask the original prompt/provider/validation failure.
+
+Response-size and formatting policy belongs to
+`StyleAwareCommitResponseValidator`, not the provider adapter. The historical
+`ConventionalCommitResponseValidator` name remains an alias for source
+compatibility. `CommitStyle` owns cohesive style metadata: prompt contract,
+illustrative example, subject limit, body policy, syntax, and punctuation.
+`CommitMessage` enforces those domain invariants, while the validator handles
+wire-text structure and vague-output rejection. The OpenAI adapter owns only
+SDK-specific error translation and plain-text extraction. This keeps provider
+switching independent from output policy and makes adding a style localized.
+The adapter explicitly sets `max_retries=0`; generation invokes the provider
+once and leaves retry/backoff policy to a higher-level caller.
+
+`PromptBuilder` applies common safety rules once, then obtains the selected
+contract and illustrative example from `CommitStyle`. Patch, summary,
+repository, and instructions are JSON-encoded at the trust boundary. Additional
+instructions are explicitly lower priority than safety and style constraints.
 
 ## Git adapter behavior
 

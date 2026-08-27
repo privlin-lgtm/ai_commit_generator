@@ -12,12 +12,15 @@ from ai_commit_generator.models import (
     GitDiffAnalysis,
 )
 from ai_commit_generator.response_validator import (
+    CommitResponseLimitError,
     ConventionalCommitResponseValidator,
+    StyleAwareCommitResponseValidator,
 )
 
 __all__ = [
     "CommitMessage",
     "CommitMessageGenerator",
+    "CommitResponseLimitError",
     "CommitStyle",
     "ConventionalCommitResponseValidator",
     "GenerateCommitMessage",
@@ -25,5 +28,6 @@ __all__ = [
     "GitDiffAnalysis",
     "GitDiffAnalyzer",
     "GitOutputLimitError",
+    "StyleAwareCommitResponseValidator",
 ]
-__version__ = "0.3.0"
+__version__ = "0.4.0"

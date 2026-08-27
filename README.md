@@ -13,7 +13,7 @@ API.
 - OpenAI-compatible provider and local-model support
 - Environment-only credential configuration
 - Bounded prompts for large diffs
-- Conventional Commit format and subject-length validation
+- Style-aware output contracts and subject-length validation
 - Immutable Pydantic v2 domain models with strict validation
 - Conventional, concise, and detailed message styles
 - Rich terminal output with progress feedback and helpful errors
@@ -42,6 +42,17 @@ Stage the changes you want described, then run:
 commitgen generate --style conventional
 ```
 
+Each style has a distinct validated output contract:
+
+| Style | Contract | Illustrative output |
+| --- | --- | --- |
+| `concise` | One plain imperative line, at most 72 characters; no prefix or body | `Add JWT validation middleware` |
+| `conventional` | Conventional Commit subject, at most 72 characters; optional body after a blank line | `feat(auth): add JWT validation middleware` |
+| `detailed` | Punctuated explanatory subject, at most 240 characters; optional body after a blank line | `Implement JWT validation middleware and protect API endpoints. Add authentication checks and update related tests.` |
+
+Examples illustrate formatting only. Generation may describe only facts present in
+the selected diff.
+
 Add guidance or target another repository:
 
 ```powershell
@@ -64,13 +75,13 @@ import logging
 
 from ai_commit_generator import CommitMessageGenerator
 from ai_commit_generator.response_validator import (
-    ConventionalCommitResponseValidator,
+    StyleAwareCommitResponseValidator,
 )
 
 generator = CommitMessageGenerator(
     client=my_completion_client,
     prompt_builder=my_prompt_builder,
-    validator=ConventionalCommitResponseValidator(),
+    validator=StyleAwareCommitResponseValidator(),
     logger=logging.getLogger("commitgen"),
 )
 message = generator.generate(parsed_diff)
@@ -79,14 +90,20 @@ message = generator.generate(parsed_diff)
 Prompt builders, completion providers, response validators, and loggers are
 constructor-injected. Switching providers requires only another
 `CompletionClient` implementation; service and domain code do not import
-OpenAI SDK response types.
+OpenAI SDK response types. The validator receives the selected `CommitStyle`, so
+provider infrastructure remains independent of output policy. Custom validators
+must implement `validate(response, style=CommitStyle.CONVENTIONAL)`; this is the
+intentional `0.4.0` API change required to validate non-Conventional styles
+safely.
 
 `GitDiff`, `GitDiffAnalysis`, `GenerateCommitRequest`, and `CommitMessage` are
 immutable Pydantic v2 models. They support `model_dump()` and
 `model_dump_json()`. Invalid provider output is rejected rather than silently
-trimmed or repaired: bodies require a blank-line separator, subjects must be
-valid Conventional Commits of at most 72 characters, and Markdown fences are
-not accepted.
+trimmed or repaired: bodies require a blank-line separator, subjects must match
+the selected style contract, and Markdown fences are not accepted. The style is
+stored on `CommitMessage` and serialized with it. Provider responses are limited
+to 20,000 characters, bodies to 10,000 characters, and additional instructions
+to 4,000 characters.
 
 Analyze staged or unstaged changes programmatically:
 
@@ -118,7 +135,9 @@ commitgen config
 ```
 
 See [configuration](docs/configuration.md) and
-[architecture](docs/architecture.md) for more detail.
+[architecture](docs/architecture.md) for more detail. The
+[edge-case matrix](docs/edge-cases.md) documents failure behavior, exact limits,
+and byte-versus-character semantics.
 
 ## Development
 

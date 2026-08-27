@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
+from pydantic_core import PydanticSerializationError
 
 from ai_commit_generator.models import (
     CommitMessage,
@@ -53,8 +54,63 @@ def test_commit_message_preserves_constructor_string_and_serialization() -> None
     )
     assert message.model_dump_json() == (
         '{"subject":"feat(api)!: remove legacy endpoint",'
-        '"body":"BREAKING CHANGE: v1"}'
+        '"body":"BREAKING CHANGE: v1","style":"conventional"}'
     )
+    assert message.style is CommitStyle.CONVENTIONAL
+
+
+@pytest.mark.parametrize(
+    ("style", "subject", "body"),
+    [
+        (CommitStyle.CONCISE, "Add JWT validation middleware", None),
+        (
+            CommitStyle.CONVENTIONAL,
+            "feat(auth): add JWT validation middleware",
+            None,
+        ),
+        (
+            CommitStyle.DETAILED,
+            "Implement JWT validation middleware and protect API endpoints. "
+            "Add authentication checks and update related tests.",
+            None,
+        ),
+        (
+            CommitStyle.DETAILED,
+            "Protect API endpoints with JWT validation.",
+            "Add authentication checks and update related tests.",
+        ),
+    ],
+)
+def test_commit_message_supports_style_specific_contracts(
+    style: CommitStyle,
+    subject: str,
+    body: str | None,
+) -> None:
+    message = CommitMessage(subject, body, style)
+
+    assert str(message) == subject if body is None else f"{subject}\n\n{body}"
+    assert message.style is style
+    assert message.model_dump()["style"] is style
+
+
+@pytest.mark.parametrize(
+    ("style", "subject", "body"),
+    [
+        (CommitStyle.CONCISE, "feat: add validation", None),
+        (CommitStyle.CONCISE, "Add validation", "Extra detail"),
+        (CommitStyle.CONCISE, "A" * 73, None),
+        (CommitStyle.DETAILED, "feat: add validation", None),
+        (CommitStyle.DETAILED, "Add validation", None),
+        (CommitStyle.DETAILED, "A" * 240 + ".", None),
+    ],
+)
+def test_commit_message_rejects_cross_style_output(
+    style: CommitStyle,
+    subject: str,
+    body: str | None,
+) -> None:
+    with pytest.raises(ValidationError):
+        CommitMessage(subject, body, style)
 
 
 @pytest.mark.parametrize(
@@ -67,6 +123,9 @@ def test_commit_message_preserves_constructor_string_and_serialization() -> None
         ("feat: line\nbreak", None),
         ("feat: valid", ""),
         ("feat: valid", " body"),
+        ("feat: nul\x00value", None),
+        ("feat: valid", "body\x00value"),
+        ("feat: valid", "x" * 10_001),
     ],
 )
 def test_commit_message_rejects_invalid_domain_values(
@@ -136,7 +195,10 @@ def test_generate_request_validates_and_serializes() -> None:
     }
 
 
-@pytest.mark.parametrize("instructions", ["", "   ", " padded"])
+@pytest.mark.parametrize(
+    "instructions",
+    ["", "   ", " padded", "x" * 4_001, "contains\x00nul"],
+)
 def test_generate_request_rejects_invalid_instructions(
     instructions: str,
 ) -> None:
@@ -154,6 +216,35 @@ def test_models_validate_from_json() -> None:
     request = GenerateCommitRequest.model_validate_json(
         '{"repository":"/repo","style":"concise","instructions":null}'
     )
+    message = CommitMessage.model_validate_json(
+        '{"subject":"Add validation","body":null,"style":"concise"}'
+    )
 
     assert diff.content == "patch"
     assert request.style is CommitStyle.CONCISE
+    assert message.style is CommitStyle.CONCISE
+    assert message.model_dump_json() == (
+        '{"subject":"Add validation","body":null,"style":"concise"}'
+    )
+
+
+def test_models_are_frozen() -> None:
+    message = CommitMessage("feat: immutable model")
+
+    with pytest.raises(ValidationError):
+        message.subject = "fix: mutation"  # type: ignore[misc]
+
+
+def test_request_rejects_unsupported_style() -> None:
+    with pytest.raises(ValidationError):
+        GenerateCommitRequest.model_validate(
+            {"repository": "/repo", "style": "verbose"}
+        )
+
+
+def test_serialization_rejects_unknown_runtime_value() -> None:
+    with pytest.raises(PydanticSerializationError):
+        CommitMessage.model_construct(
+            subject="feat: valid",
+            body=object(),
+        ).model_dump_json()
