@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="250" viewBox="0 0 920 250" role="img" aria-labelledby="title desc">
+  <title id="title">Illustrative commitgen terminal preview</title>
+  <desc id="desc">A terminal shows commitgen generating a Conventional Commit message for staged authentication changes.</desc>
+  <rect width="920" height="250" rx="12" fill="#0d1117"/>
+  <circle cx="24" cy="24" r="6" fill="#ff5f56"/>
+  <circle cx="44" cy="24" r="6" fill="#ffbd2e"/>
+  <circle cx="64" cy="24" r="6" fill="#27c93f"/>
+  <text x="24" y="70" fill="#8b949e" font-family="ui-monospace, monospace" font-size="18">$</text>
+  <text x="48" y="70" fill="#f0f6fc" font-family="ui-monospace, monospace" font-size="18">git add src/auth tests</text>
+  <text x="24" y="110" fill="#8b949e" font-family="ui-monospace, monospace" font-size="18">$</text>
+  <text x="48" y="110" fill="#f0f6fc" font-family="ui-monospace, monospace" font-size="18">commitgen generate --style conventional</text>
+  <text x="48" y="158" fill="#3fb950" font-family="ui-monospace, monospace" font-size="19" font-weight="bold">feat(auth): add JWT validation middleware</text>
+  <text x="48" y="198" fill="#c9d1d9" font-family="ui-monospace, monospace" font-size="16">Reject expired tokens and cover protected endpoints.</text>
+  <text x="24" y="232" fill="#8b949e" font-family="ui-monospace, monospace" font-size="13">Illustrative output; actual content is derived from the staged diff.</text>
+</svg>

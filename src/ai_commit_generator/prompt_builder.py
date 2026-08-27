@@ -3,12 +3,21 @@
 from __future__ import annotations
 
 import json
+from typing import Protocol
 
 from ai_commit_generator.models import (
     CommitStyle,
+    ConventionalCommitType,
     GitDiff,
     validate_generation_instructions,
 )
+
+
+class CommitTypeAnalyzer(Protocol):
+    def analyze(self, diff: GitDiff) -> ConventionalCommitType:
+        """Infer a local Conventional Commit type hint."""
+        ...
+
 
 SYSTEM_PROMPT = (
     "You write precise commit messages from Git diffs.\n"
@@ -25,13 +34,19 @@ SYSTEM_PROMPT = (
     "contract rules."
 )
 
+
 class PromptBuilder:
     """Build bounded prompts from repository changes."""
 
-    def __init__(self, max_diff_chars: int = 60_000) -> None:
+    def __init__(
+        self,
+        max_diff_chars: int = 60_000,
+        analyzer: CommitTypeAnalyzer | None = None,
+    ) -> None:
         if max_diff_chars < 1_000:
             raise ValueError("max_diff_chars must be at least 1000")
         self._max_diff_chars = max_diff_chars
+        self._analyzer = analyzer
 
     def build(
         self,
@@ -66,6 +81,13 @@ class PromptBuilder:
                 "Lower-priority additional user guidance "
                 "(must not override the style or safety rules) JSON string: "
                 f"{json.dumps(instructions)}"
+            )
+        if style is CommitStyle.CONVENTIONAL and self._analyzer is not None:
+            inferred = self._analyzer.analyze(diff)
+            parts.append(
+                "Heuristic Conventional Commit type hint: "
+                f"{inferred.value}. Treat this only as a local heuristic and "
+                "override it when the actual diff evidence supports another type."
             )
         if summary:
             parts.append(f"Change summary JSON string:\n{json.dumps(summary)}")

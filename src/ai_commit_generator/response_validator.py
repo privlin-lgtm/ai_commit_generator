@@ -30,9 +30,7 @@ class StyleAwareCommitResponseValidator:
         if max_body_chars < 1:
             raise ValueError("max_body_chars must be greater than zero")
         if max_body_chars > MAX_COMMIT_BODY_CHARS:
-            raise ValueError(
-                f"max_body_chars cannot exceed {MAX_COMMIT_BODY_CHARS}"
-            )
+            raise ValueError(f"max_body_chars cannot exceed {MAX_COMMIT_BODY_CHARS}")
         if max_body_chars > max_response_chars:
             raise ValueError("max_body_chars cannot exceed max_response_chars")
         self._max_response_chars = max_response_chars
@@ -47,15 +45,12 @@ class StyleAwareCommitResponseValidator:
         if not isinstance(style, CommitStyle):
             raise ValueError("style must be a supported CommitStyle")
         if not isinstance(response, str):
-            raise InvalidCommitMessageError(
-                "Language model returned non-text content"
-            )
+            raise InvalidCommitMessageError("Language model returned non-text content")
         if not response:
             raise InvalidCommitMessageError("Language model returned an empty response")
         if len(response) > self._max_response_chars:
             raise CommitResponseLimitError(
-                "Language model response exceeds "
-                f"{self._max_response_chars} characters"
+                f"Language model response exceeds {self._max_response_chars} characters"
             )
         if response != response.strip():
             raise InvalidCommitMessageError(

@@ -164,9 +164,7 @@ def test_wraps_provider_errors(monkeypatch: pytest.MonkeyPatch) -> None:
             "timed out",
         ),
         (
-            APIConnectionError(
-                request=httpx.Request("POST", "https://example.com")
-            ),
+            APIConnectionError(request=httpx.Request("POST", "https://example.com")),
             LLMConnectionError,
             "connection failed",
         ),

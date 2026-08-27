@@ -19,6 +19,22 @@ from pydantic import (
     model_validator,
 )
 
+
+class ConventionalCommitType(str, Enum):
+    """Supported locally inferred Conventional Commit categories."""
+
+    FEAT = "feat"
+    FIX = "fix"
+    REFACTOR = "refactor"
+    TEST = "test"
+    DOCS = "docs"
+    STYLE = "style"
+    PERF = "perf"
+    BUILD = "build"
+    CI = "ci"
+    CHORE = "chore"
+
+
 CONVENTIONAL_SUBJECT_PATTERN = (
     r"^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)"
     r"(?:\([a-zA-Z0-9._/-]+\))?!?: .+$"
@@ -89,9 +105,7 @@ class CommitStyle(str, Enum):
         """Return a clearly non-authoritative format example."""
         examples = {
             CommitStyle.CONCISE: "Add JWT validation middleware",
-            CommitStyle.CONVENTIONAL: (
-                "feat(auth): add JWT validation middleware"
-            ),
+            CommitStyle.CONVENTIONAL: ("feat(auth): add JWT validation middleware"),
             CommitStyle.DETAILED: (
                 "Implement JWT validation middleware and protect API endpoints. "
                 "Add authentication checks and update related tests."
@@ -270,20 +284,13 @@ class CommitMessage(DomainModel):
                 if self.style is CommitStyle.CONCISE
                 else "explanatory prose"
             )
-            raise ValueError(
-                f"{self.style.value} subject must use {expected}"
-            )
-        if (
-            self.style.requires_terminal_punctuation
-            and not self.subject.endswith((".", "!", "?"))
+            raise ValueError(f"{self.style.value} subject must use {expected}")
+        if self.style.requires_terminal_punctuation and not self.subject.endswith(
+            (".", "!", "?")
         ):
-            raise ValueError(
-                f"{self.style.value} subject must end with punctuation"
-            )
+            raise ValueError(f"{self.style.value} subject must end with punctuation")
         if self.body is not None and not self.style.allows_body:
-            raise ValueError(
-                f"{self.style.value} messages must not contain a body"
-            )
+            raise ValueError(f"{self.style.value} messages must not contain a body")
         if self.body is not None:
             if not self.body.strip():
                 raise ValueError("body must not be empty")
@@ -346,9 +353,7 @@ def validate_generation_instructions(value: str | None) -> str | None:
     if value != value.strip():
         raise ValueError("instructions must not have surrounding whitespace")
     if len(value) > MAX_INSTRUCTION_CHARS:
-        raise ValueError(
-            f"instructions exceed {MAX_INSTRUCTION_CHARS} characters"
-        )
+        raise ValueError(f"instructions exceed {MAX_INSTRUCTION_CHARS} characters")
     if _contains_control_character(value, allowed={"\n", "\t"}):
         raise ValueError("instructions contain unsupported control characters")
     return value

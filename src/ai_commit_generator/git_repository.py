@@ -43,9 +43,7 @@ class GitRepositoryInspector:
                 max_chars=ROOT_OUTPUT_LIMIT,
             )
         except GitCommandFailedError as exc:
-            raise NotGitRepositoryError(
-                f"Not a Git repository: {directory}"
-            ) from exc
+            raise NotGitRepositoryError(f"Not a Git repository: {directory}") from exc
         if result.truncated:
             raise GitOutputLimitError("Git repository path exceeded the safety limit")
         root_text = result.output.rstrip("\r\n")

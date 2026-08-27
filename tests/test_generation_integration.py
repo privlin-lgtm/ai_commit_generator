@@ -98,9 +98,7 @@ def test_large_diff_discloses_patch_and_summary_truncation(
         client,
         max_diff_chars=1_000,
         builder=builder,
-    ).execute(
-        GenerateCommitRequest(tmp_path)
-    )
+    ).execute(GenerateCommitRequest(tmp_path))
 
     assert message.subject == "feat: add generated fixtures"
     assert client.calls == 1
@@ -128,9 +126,7 @@ def test_merge_conflict_stops_before_prompt_and_provider(tmp_path: Path) -> None
     builder = CountingPromptBuilder()
 
     with pytest.raises(MergeConflictError, match=r"conflict\.txt"):
-        _use_case(client, builder=builder).execute(
-            GenerateCommitRequest(tmp_path)
-        )
+        _use_case(client, builder=builder).execute(GenerateCommitRequest(tmp_path))
 
     assert client.calls == 0
     assert builder.calls == 0

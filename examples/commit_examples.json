@@ -1,0 +1,182 @@
+[
+  {
+    "id": "feature-python-endpoint",
+    "category": "feature",
+    "expected_type": "feat",
+    "diff": "diff --git a/src/api/users.py b/src/api/users.py\nnew file mode 100644\n--- /dev/null\n+++ b/src/api/users.py\n@@ -0,0 +1,3 @@\n+@router.post(\"/users\")\n+def create_user(payload: UserInput):\n+    return service.create(payload)\n",
+    "concise": "Add user creation endpoint",
+    "conventional": "feat(api): add user creation endpoint",
+    "detailed": "Add a user creation endpoint that delegates validated input to the user service."
+  },
+  {
+    "id": "feature-typescript-search",
+    "category": "feature",
+    "expected_type": "feat",
+    "diff": "diff --git a/web/search.ts b/web/search.ts\n--- a/web/search.ts\n+++ b/web/search.ts\n@@ -2,0 +3,4 @@\n+export function filterUsers(query: string) {\n+  return users.filter(user => user.name.includes(query));\n+}\n",
+    "concise": "Add user search filtering",
+    "conventional": "feat(search): add user filtering",
+    "detailed": "Add user search filtering that matches names against the supplied query."
+  },
+  {
+    "id": "feature-go-health",
+    "category": "feature",
+    "expected_type": "feat",
+    "diff": "diff --git a/internal/http/health.go b/internal/http/health.go\nnew file mode 100644\n--- /dev/null\n+++ b/internal/http/health.go\n@@ -0,0 +1,3 @@\n+func Health(w http.ResponseWriter, r *http.Request) {\n+    w.WriteHeader(http.StatusNoContent)\n+}\n",
+    "concise": "Add health check handler",
+    "conventional": "feat(http): add health check handler",
+    "detailed": "Add a health check handler that responds with a no-content status."
+  },
+  {
+    "id": "feature-java-export",
+    "category": "feature",
+    "expected_type": "feat",
+    "diff": "diff --git a/src/main/java/app/ExportService.java b/src/main/java/app/ExportService.java\n--- a/src/main/java/app/ExportService.java\n+++ b/src/main/java/app/ExportService.java\n@@ -8,0 +9,3 @@\n+  public byte[] exportCsv(List<Row> rows) {\n+    return csvWriter.write(rows);\n+  }\n",
+    "concise": "Add CSV export support",
+    "conventional": "feat(export): add CSV export support",
+    "detailed": "Add CSV export support that serializes supplied rows through the existing writer."
+  },
+  {
+    "id": "fix-token-expiration",
+    "category": "bugfix",
+    "expected_type": "fix",
+    "diff": "diff --git a/src/auth/token.py b/src/auth/token.py\n--- a/src/auth/token.py\n+++ b/src/auth/token.py\n@@ -20 +20,2 @@\n-    return expires_at < now\n+    # Fix the expiration boundary at the current instant.\n+    return expires_at <= now\n",
+    "concise": "Reject tokens at their expiration time",
+    "conventional": "fix(auth): reject tokens at expiration",
+    "detailed": "Reject tokens exactly at their expiration time instead of accepting them for one extra instant."
+  },
+  {
+    "id": "fix-typescript-pagination",
+    "category": "bugfix",
+    "expected_type": "fix",
+    "diff": "diff --git a/web/pagination.ts b/web/pagination.ts\n--- a/web/pagination.ts\n+++ b/web/pagination.ts\n@@ -4 +4 @@\n-const offset = page * size;\n+const offset = (page - 1) * size; // fix first-page offset\n",
+    "concise": "Correct the first page offset",
+    "conventional": "fix(pagination): correct first page offset",
+    "detailed": "Correct pagination so the first page starts at offset zero."
+  },
+  {
+    "id": "fix-go-nil-session",
+    "category": "bugfix",
+    "expected_type": "fix",
+    "diff": "diff --git a/session/store.go b/session/store.go\n--- a/session/store.go\n+++ b/session/store.go\n@@ -14,0 +15,4 @@\n+// Fix missing sessions before dereferencing the value.\n+if session == nil {\n+    return ErrSessionNotFound\n+}\n",
+    "concise": "Handle missing sessions safely",
+    "conventional": "fix(session): handle missing sessions",
+    "detailed": "Handle missing sessions explicitly instead of dereferencing a nil value."
+  },
+  {
+    "id": "fix-java-timezone",
+    "category": "bugfix",
+    "expected_type": "fix",
+    "diff": "diff --git a/src/main/java/app/Clock.java b/src/main/java/app/Clock.java\n--- a/src/main/java/app/Clock.java\n+++ b/src/main/java/app/Clock.java\n@@ -7 +7 @@\n-    return LocalDateTime.now();\n+    return LocalDateTime.now(ZoneOffset.UTC); // correct timezone\n",
+    "concise": "Use UTC for generated timestamps",
+    "conventional": "fix(time): generate timestamps in UTC",
+    "detailed": "Generate timestamps in UTC so deployments produce consistent time values."
+  },
+  {
+    "id": "refactor-python-parser",
+    "category": "refactor",
+    "expected_type": "refactor",
+    "diff": "diff --git a/src/parser.py b/src/parser.py\n--- a/src/parser.py\n+++ b/src/parser.py\n@@ -10,0 +11,3 @@\n+def parse_header(value: str) -> Header:\n+    return Header.from_value(value)\n+# refactor parsing into a focused helper\n",
+    "concise": "Extract header parsing helper",
+    "conventional": "refactor(parser): extract header helper",
+    "detailed": "Extract header parsing into a focused helper while preserving existing behavior."
+  },
+  {
+    "id": "refactor-typescript-client",
+    "category": "refactor",
+    "expected_type": "refactor",
+    "diff": "diff --git a/web/client.ts b/web/httpClient.ts\nsimilarity index 91%\nrename from web/client.ts\nrename to web/httpClient.ts\n+++ b/web/httpClient.ts\n@@ -1,0 +2 @@\n+// rename client to clarify its HTTP responsibility\n",
+    "concise": "Rename the HTTP client module",
+    "conventional": "refactor(client): clarify HTTP client naming",
+    "detailed": "Rename the client module to clarify its HTTP-specific responsibility."
+  },
+  {
+    "id": "refactor-go-interface",
+    "category": "refactor",
+    "expected_type": "refactor",
+    "diff": "diff --git a/internal/store/store.go b/internal/store/store.go\n--- a/internal/store/store.go\n+++ b/internal/store/store.go\n@@ -3,0 +4,4 @@\n+// Refactor persistence behind a narrow interface.\n+type Store interface {\n+    Save(Item) error\n+}\n",
+    "concise": "Extract the persistence interface",
+    "conventional": "refactor(store): extract persistence interface",
+    "detailed": "Extract persistence behind a narrow store interface without changing its behavior."
+  },
+  {
+    "id": "refactor-java-validator",
+    "category": "refactor",
+    "expected_type": "refactor",
+    "diff": "diff --git a/src/main/java/app/Validator.java b/src/main/java/app/Validator.java\n--- a/src/main/java/app/Validator.java\n+++ b/src/main/java/app/Validator.java\n@@ -20,0 +21,2 @@\n+    // Extract repeated validation into one helper.\n+    return validateFields(request);\n",
+    "concise": "Extract shared request validation",
+    "conventional": "refactor(validation): extract shared checks",
+    "detailed": "Extract repeated request validation into one helper while preserving validation behavior."
+  },
+  {
+    "id": "docs-installation",
+    "category": "documentation",
+    "expected_type": "docs",
+    "diff": "diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@ -10,0 +11,3 @@\n+## Installation\n+\n+Run `python -m pip install .` from the checkout.\n",
+    "concise": "Document local installation",
+    "conventional": "docs: document local installation",
+    "detailed": "Document how to install the project from a local checkout."
+  },
+  {
+    "id": "docs-api-reference",
+    "category": "documentation",
+    "expected_type": "docs",
+    "diff": "diff --git a/docs/api.md b/docs/api.md\n--- a/docs/api.md\n+++ b/docs/api.md\n@@ -2,0 +3,2 @@\n+`GET /users` returns the current user collection.\n+The response uses JSON.\n",
+    "concise": "Document the users API response",
+    "conventional": "docs(api): describe the users response",
+    "detailed": "Document the users endpoint and its JSON response format."
+  },
+  {
+    "id": "docs-go-example",
+    "category": "documentation",
+    "expected_type": "docs",
+    "diff": "diff --git a/docs/go-client.md b/docs/go-client.md\nnew file mode 100644\n--- /dev/null\n+++ b/docs/go-client.md\n@@ -0,0 +1,2 @@\n+# Go client\n+Call `client.Users(ctx)` to list users.\n",
+    "concise": "Add Go client usage documentation",
+    "conventional": "docs(go): add client usage example",
+    "detailed": "Add a Go client example that shows how to list users."
+  },
+  {
+    "id": "docs-config-table",
+    "category": "documentation",
+    "expected_type": "docs",
+    "diff": "diff --git a/docs/configuration.rst b/docs/configuration.rst\n--- a/docs/configuration.rst\n+++ b/docs/configuration.rst\n@@ -5,0 +6,2 @@\n+TIMEOUT\n+  Maximum request duration in seconds.\n",
+    "concise": "Document the timeout setting",
+    "conventional": "docs(config): describe timeout setting",
+    "detailed": "Document the timeout setting and clarify that it limits request duration."
+  },
+  {
+    "id": "test-python-expiration",
+    "category": "testing",
+    "expected_type": "test",
+    "diff": "diff --git a/tests/test_token.py b/tests/test_token.py\n--- a/tests/test_token.py\n+++ b/tests/test_token.py\n@@ -8,0 +9,2 @@\n+def test_rejects_expired_token():\n+    assert validate(expired_token) is False\n",
+    "concise": "Test expired token rejection",
+    "conventional": "test(auth): cover expired token rejection",
+    "detailed": "Add a regression test that verifies expired tokens are rejected."
+  },
+  {
+    "id": "test-typescript-search",
+    "category": "testing",
+    "expected_type": "test",
+    "diff": "diff --git a/web/search.test.ts b/web/search.test.ts\n--- a/web/search.test.ts\n+++ b/web/search.test.ts\n@@ -2,0 +3,2 @@\n+it('filters by name', () => {\n+  expect(filterUsers('Ada')).toHaveLength(1);\n",
+    "concise": "Test user name filtering",
+    "conventional": "test(search): cover name filtering",
+    "detailed": "Add a test that verifies users are filtered by name."
+  },
+  {
+    "id": "test-go-health",
+    "category": "testing",
+    "expected_type": "test",
+    "diff": "diff --git a/internal/http/health_test.go b/internal/http/health_test.go\nnew file mode 100644\n--- /dev/null\n+++ b/internal/http/health_test.go\n@@ -0,0 +1,2 @@\n+func TestHealth(t *testing.T) {\n+    assertStatus(t, Health, 204)\n",
+    "concise": "Test the health handler status",
+    "conventional": "test(http): cover health handler status",
+    "detailed": "Add a test that verifies the health handler returns no content."
+  },
+  {
+    "id": "test-java-export",
+    "category": "testing",
+    "expected_type": "test",
+    "diff": "diff --git a/src/test/java/app/ExportServiceTest.java b/src/test/java/app/ExportServiceTest.java\n--- a/src/test/java/app/ExportServiceTest.java\n+++ b/src/test/java/app/ExportServiceTest.java\n@@ -5,0 +6,2 @@\n+  @Test void writesHeader() {\n+    assertTrue(export().startsWith(\"name,\"));\n",
+    "concise": "Test CSV export headers",
+    "conventional": "test(export): cover CSV headers",
+    "detailed": "Add a test that verifies CSV exports begin with the expected header."
+  }
+]

@@ -30,9 +30,7 @@ class GitNumstatParser:
     def parse(self, output: str) -> GitDiffAnalysis:
         """Return exact statistics or fail on malformed data."""
         if output and not output.endswith("\0"):
-            raise MalformedGitOutputError(
-                "Git numstat output was not NUL-terminated"
-            )
+            raise MalformedGitOutputError("Git numstat output was not NUL-terminated")
         entries = output.split("\0")
         index = 0
         files_changed = 0
@@ -48,9 +46,7 @@ class GitNumstatParser:
 
             fields = entry.split("\t", 2)
             if len(fields) != 3:
-                raise MalformedGitOutputError(
-                    "Git returned malformed numstat output"
-                )
+                raise MalformedGitOutputError("Git returned malformed numstat output")
             added, removed, path = fields
             if (added == "-") != (removed == "-"):
                 raise MalformedGitOutputError(

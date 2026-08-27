@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ai-commit-generator"
-version = "0.4.0"
-description = "Generate Conventional Commit messages from Git diffs with OpenAI-compatible models."
+version = "0.5.0"
+description = "Generate validated commit messages from Git diffs with local or remote LLM providers."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [{ name = "AI Commit Generator contributors" }]
-keywords = ["git", "commit", "openai", "cli", "conventional-commits"]
+keywords = ["git", "commit", "llm", "cli", "conventional-commits"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
@@ -25,16 +25,25 @@ classifiers = [
 dependencies = [
   "openai>=1.40,<3",
   "pydantic>=2.7,<3",
+  "pydantic-settings>=2.3,<3",
+  "PyYAML>=6.0,<7",
   "rich>=13.8,<16",
   "typer>=0.12,<1",
 ]
 
 [project.optional-dependencies]
+anthropic = ["anthropic>=0.34,<1"]
+all-providers = ["anthropic>=0.34,<1"]
 dev = [
+  "anthropic>=0.34,<1",
   "mypy>=1.11,<2",
-  "pytest>=8.2,<9",
+  "pytest>=9.0.3,<10",
   "pytest-cov>=5,<7",
   "ruff>=0.6,<1",
+  "types-PyYAML>=6.0,<7",
+  "bandit>=1.7,<2",
+  "build>=1.2,<2",
+  "pip-audit>=2.7,<3",
 ]
 
 [project.scripts]
@@ -46,7 +55,7 @@ commitgen = "ai_commit_generator.cli:main"
 packages = ["src/ai_commit_generator"]
 
 [tool.pytest.ini_options]
-addopts = "--strict-markers --strict-config --cov=ai_commit_generator --cov-report=term-missing --cov-fail-under=85"
+addopts = "--strict-markers --strict-config --cov=ai_commit_generator --cov-report=term-missing --cov-fail-under=90"
 testpaths = ["tests"]
 
 [tool.ruff]

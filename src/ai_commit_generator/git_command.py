@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-import subprocess
+# Fixed Git executable, immutable arguments, bounded output, and no shell.
+import subprocess  # nosec B404
 import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -85,7 +86,7 @@ class GitCommandRunner:
             tempfile.TemporaryFile(mode="w+b") as stderr,
         ):
             try:
-                completed = subprocess.run(
+                completed = subprocess.run(  # nosec B603
                     command,
                     cwd=cwd,
                     check=False,

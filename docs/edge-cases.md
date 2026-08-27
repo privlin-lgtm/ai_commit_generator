@@ -27,6 +27,21 @@ or calls later dependencies after an earlier stage fails.
 | Response | CRLF body separators | Accepted and represented canonically with LF in `CommitMessage` |
 | Logging | Handler raises | Logging is best-effort; generation succeeds or its original failure propagates unchanged |
 | Logging | Sensitive input | Logs contain fixed-cardinality metadata only, never content, paths, instructions, responses, credentials, or exception messages |
+| Provider selection | Missing optional SDK | `LLMMissingDependencyError` names the install extra without exposing configuration |
+| Provider selection | OpenAI key with Anthropic/Azure selection | Provider-specific credential lookup fails; keys are never reused across vendors |
+| Provider retry | Timeout, connection, rate limit, 5xx | Only transient errors retry up to the configured attempt/cap; SDK retries stay disabled |
+| Provider retry | Auth, invalid request, malformed/empty response | Terminal typed error with exactly one provider call |
+| Ollama | Remote URL without trusted opt-in | Configuration rejection before transport construction |
+| Ollama | Redirect, invalid JSON, oversized or malformed response | Typed terminal error; redirects are not followed |
+| Configuration | Auto repository YAML sets provider, endpoint, credential, retry, or transport policy | Typed rejection; environment credentials and staged content are never sent |
+| Configuration | Symlink, special file, duplicate/alias/custom tag, unknown key, oversized YAML | Typed rejection before provider construction |
+| Analyzer | Docs/test/CI/build/formatting-only paths | Strong exclusive path precedence |
+| Analyzer | Mixed or semantic patch | Added-line weighted scoring with deterministic tie order; ambiguous input defaults to `chore` |
+| Analyzer | Binary/truncated/Unicode/rename input | Safe deterministic classification from available bounded evidence; no network or raw-content logging |
+| Hook install | Foreign hook | Refusal by default; `--force` creates a non-colliding backup |
+| Hook runtime | Noninteractive source or existing message | Skip without config/provider invocation |
+| Hook runtime | Provider/config/no-change failure | Fail open, preserve bytes, sanitized warning |
+| Hook runtime | Outside/symlink/directory/non-UTF-8/oversized message or active lock | Fail closed without corrupting the file |
 
 ## Limits and units
 

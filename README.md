@@ -1,171 +1,182 @@
-# AI Commit Message Generator
+# AI Commit Generator
 
-Generate concise, validated
-[Conventional Commit](https://www.conventionalcommits.org/) messages from
-staged or unstaged Git changes using OpenAI or any compatible chat completions
-API.
+[![CI](https://github.com/privlin-lgtm/ai_commit_generator/actions/workflows/ci.yml/badge.svg)](https://github.com/privlin-lgtm/ai_commit_generator/actions/workflows/ci.yml)
+![Coverage 90%+](https://img.shields.io/badge/coverage-90%2B-brightgreen)
+![Python 3.10–3.13](https://img.shields.io/badge/python-3.10--3.13-blue)
+![MIT License](https://img.shields.io/badge/license-MIT-green)
+
+Generate useful commit messages from staged Git changes without coupling your
+workflow to one model vendor. `commitgen` combines bounded Git analysis,
+deterministic Conventional Commit classification, style-aware prompting, strict
+output validation, and an optional `prepare-commit-msg` hook.
+
+![Illustrative terminal preview of commitgen generating a Conventional Commit message](docs/assets/commitgen-cli.svg)
 
 ## Features
 
-- Safe, shell-free Git diff collection
-- Bounded-memory patch, summary, metadata, and error handling
-- Explicit unresolved merge-conflict detection
-- OpenAI-compatible provider and local-model support
-- Environment-only credential configuration
-- Bounded prompts for large diffs
-- Style-aware output contracts and subject-length validation
-- Immutable Pydantic v2 domain models with strict validation
-- Conventional, concise, and detailed message styles
-- Rich terminal output with progress feedback and helpful errors
-- Clean Architecture boundaries with dependency-injected adapters
+- **Git-aware:** staged/unstaged collection, exact numstat analysis, binary and
+  rename handling, merge-conflict detection, and bounded I/O.
+- **Three output contracts:** concise imperative, Conventional Commit, or
+  detailed explanatory prose.
+- **Private local classification:** `ConventionalCommitAnalyzer` deterministically
+  infers `feat`, `fix`, `docs`, and other types without an LLM.
+- **Four providers:** OpenAI, Azure OpenAI, Anthropic, and local/remote Ollama.
+- **Layered configuration:** typed CLI > `.commitgen.yaml` > environment >
+  defaults resolution with secret redaction.
+- **Git hook:** managed, portable `prepare-commit-msg` integration with safe
+  backups, atomic writes, fail-open provider handling, and structural fail-close.
+- **Production boundaries:** dependency injection, provider-neutral ports,
+  normalized typed failures, explicit timeouts, and opt-in bounded retries.
+- **Quality:** offline provider tests, temporary-repository integration tests,
+  strict mypy, Ruff, Bandit, pip-audit, and Python 3.10–3.13 CI.
 
-## Install
+## Architecture
 
-Python 3.10 or newer is required.
+```mermaid
+flowchart LR
+    CLI[Typer CLI] --> APP[Application services]
+    HOOK[prepare-commit-msg adapter] --> APP
+    APP --> PORTS[Domain policies and ports]
+    GIT[Git adapters] --> PORTS
+    CFG[Pydantic Settings and YAML adapter] --> CLI
+    FACTORY[Provider factory and retry decorator] --> PORTS
+    SDK[OpenAI, Azure, Anthropic adapters] --> FACTORY
+    OLLAMA[Ollama HTTP adapter] --> FACTORY
+```
+
+Dependencies point inward: domain/application code never imports vendor SDKs,
+Typer, or HTTP transports. See the full [technical architecture](docs/architecture.md).
+
+## Installation
+
+Requires Git and Python 3.10–3.13. This repository is not claiming a published
+PyPI release; install from a checkout:
 
 ```powershell
 python -m pip install .
-$env:AI_COMMIT_API_KEY = "your-api-key"
+python -m pip install ".[anthropic]"      # Anthropic support
+python -m pip install ".[all-providers]"  # every optional provider
+python -m pip install -e ".[dev]"         # development/security toolchain
 ```
 
-For development:
+OpenAI and Azure OpenAI support remain in the base install for compatibility.
+Ollama uses the standard library HTTP client and needs no SDK.
+
+## Configuration
+
+Precedence is **CLI overrides → repository `.commitgen.yaml` → environment →
+typed defaults**. Discovery checks only the selected repository root; it never
+walks parent directories.
+
+```yaml
+model: llama3.2
+default_style: conventional
+temperature: 0.2
+max_tokens: 1024
+```
+
+Keep credentials in the environment, not YAML:
 
 ```powershell
-python -m pip install -e ".[dev]"
+$env:AI_COMMIT_PROVIDER = "openai"
+$env:AI_COMMIT_API_KEY = "..."
+$env:AI_COMMIT_MODEL = "gpt-4o-mini"
 ```
+
+Auto-discovered repository YAML accepts generation preferences only. Set
+provider, endpoints, timeout, and retry policy through trusted environment/CLI
+input or an explicitly supplied `--config` file.
+
+Azure uses `AZURE_OPENAI_API_KEY`, `AI_COMMIT_AZURE_ENDPOINT`,
+`AI_COMMIT_AZURE_DEPLOYMENT`, and `AI_COMMIT_AZURE_API_VERSION`. Anthropic
+accepts only `ANTHROPIC_API_KEY`; Ollama
+needs no key. See [configuration](docs/configuration.md).
 
 ## Usage
 
-Stage the changes you want described, then run:
-
 ```powershell
+commitgen generate --style concise
+# Add JWT validation middleware
+
 commitgen generate --style conventional
-```
+# feat(auth): add JWT validation middleware
 
-Each style has a distinct validated output contract:
+commitgen generate --style detailed
+# Implement JWT validation middleware and protect API endpoints.
 
-| Style | Contract | Illustrative output |
-| --- | --- | --- |
-| `concise` | One plain imperative line, at most 72 characters; no prefix or body | `Add JWT validation middleware` |
-| `conventional` | Conventional Commit subject, at most 72 characters; optional body after a blank line | `feat(auth): add JWT validation middleware` |
-| `detailed` | Punctuated explanatory subject, at most 240 characters; optional body after a blank line | `Implement JWT validation middleware and protect API endpoints. Add authentication checks and update related tests.` |
-
-Examples illustrate formatting only. Generation may describe only facts present in
-the selected diff.
-
-Add guidance or target another repository:
-
-```powershell
-commitgen generate --instructions "Emphasize the migration"
-commitgen generate -C C:\path\to\repository
-```
-
-The generated message is printed to standard output for review. The tool does
-not create a commit or modify the repository.
-
-## Service API
-
-`CommitMessageGenerator` has one orchestration responsibility: accept a
-validated `GitDiff`, build a prompt, call a provider-neutral
-`CompletionClient`, validate the response, and return a validated
-`CommitMessage`.
-
-```python
-import logging
-
-from ai_commit_generator import CommitMessageGenerator
-from ai_commit_generator.response_validator import (
-    StyleAwareCommitResponseValidator,
-)
-
-generator = CommitMessageGenerator(
-    client=my_completion_client,
-    prompt_builder=my_prompt_builder,
-    validator=StyleAwareCommitResponseValidator(),
-    logger=logging.getLogger("commitgen"),
-)
-message = generator.generate(parsed_diff)
-```
-
-Prompt builders, completion providers, response validators, and loggers are
-constructor-injected. Switching providers requires only another
-`CompletionClient` implementation; service and domain code do not import
-OpenAI SDK response types. The validator receives the selected `CommitStyle`, so
-provider infrastructure remains independent of output policy. Custom validators
-must implement `validate(response, style=CommitStyle.CONVENTIONAL)`; this is the
-intentional `0.4.0` API change required to validate non-Conventional styles
-safely.
-
-`GitDiff`, `GitDiffAnalysis`, `GenerateCommitRequest`, and `CommitMessage` are
-immutable Pydantic v2 models. They support `model_dump()` and
-`model_dump_json()`. Invalid provider output is rejected rather than silently
-trimmed or repaired: bodies require a blank-line separator, subjects must match
-the selected style contract, and Markdown fences are not accepted. The style is
-stored on `CommitMessage` and serialized with it. Provider responses are limited
-to 20,000 characters, bodies to 10,000 characters, and additional instructions
-to 4,000 characters.
-
-Analyze staged or unstaged changes programmatically:
-
-```python
-from ai_commit_generator import GitDiffAnalyzer
-
-staged = GitDiffAnalyzer().analyze(".", staged=True)
-print(staged.as_dict())
-# {"files_changed": 4, "insertions": 122, "deletions": 18,
-#  "file_types": ["md", "py"]}
-```
-
-`GitDiffCollector` and `GitDiffAnalyzer` intentionally differ when the selected
-diff is empty: collection raises `NoChangesError` because there is no prompt to
-generate, while analysis returns zero counts. Analysis is exact; if complete
-`--numstat` metadata exceeds its safety limit it raises `GitOutputLimitError`
-instead of returning partial statistics.
-
-File types use the destination path for renames, the final lowercase extension
-for names with multiple dots, and `extensionless` for dotfiles, names without
-an extension, Gitlinks, and names ending in a dot. Binary files retain their
-type and contribute zero insertions and deletions.
-
-List styles or inspect non-secret configuration:
-
-```powershell
+commitgen generate --provider anthropic --model claude-sonnet-4-5
+commitgen generate --provider ollama --model llama3.2
 commitgen styles
 commitgen config
 ```
 
-See [configuration](docs/configuration.md) and
-[architecture](docs/architecture.md) for more detail. The
-[edge-case matrix](docs/edge-cases.md) documents failure behavior, exact limits,
-and byte-versus-character semantics.
+Examples illustrate formatting only; generated messages may describe only
+changes present in the selected diff.
 
-## Development
+Install the managed hook:
+
+```powershell
+commitgen install-hook -C C:\path\to\repository
+commitgen install-hook -C C:\path\to\repository --force
+```
+
+`--force` preserves a foreign hook in a non-colliding backup. Set
+`COMMITGEN_SKIP=1` to skip generation for one commit. See
+[Git hook integration](docs/hooks.md).
+
+## Engineering highlights
+
+| Concern | Implementation |
+| --- | --- |
+| Architecture | Clean Architecture, ports/adapters, explicit composition root |
+| Patterns | Provider Strategy, registry Factory, retry Decorator, SDK/HTTP Adapters |
+| Domain | Frozen Pydantic models, style-aware validation, deterministic local classifier |
+| Safety | Shell-free Git, disabled external diff/textconv, bounded reads, JSON prompt framing |
+| Testability | Injected clients/transports/sleep/filesystem; no real provider network |
+| UX | Typer commands, Rich interactive output, quiet non-interactive hook runtime |
+
+## Testing and quality
 
 ```powershell
 ruff check .
+ruff format --check .
 mypy src
-pytest
+pytest --cov-fail-under=90
+bandit -r src -q
+pip-audit
+python -m build
 ```
 
-## Security
+Unit tests use small provider/transport fakes. Integration tests create temporary
+Git repositories and exercise real Git without real LLM calls. See
+[testing](docs/testing.md) and [edge cases](docs/edge-cases.md).
 
-Never store API keys in the repository. Use environment variables or your
-platform's secret manager. Diff contents are sent to the configured provider;
-review provider data policies before using this tool with sensitive code. The
-configured base URL is visible in `commitgen config`, so URLs containing
-credentials, query strings, or fragments are rejected.
+## Security and privacy
 
-Generation logs contain lifecycle metadata only: style, staged state, bounded
-character counts, truncation flags, and validation/provider error types. Raw
-diffs, repository paths, instructions, provider responses, and API keys are
-never logged by the service.
+Remote providers receive bounded staged diff content. Ollama is local by default,
+but an explicitly configured remote Ollama endpoint also receives the diff.
+Credentials are provider-specific, never reused across vendors, and should
+remain in environment variables or a secret manager. Auto-discovered repository
+YAML cannot select providers/endpoints or transport policy. Prompt JSON framing
+reduces, but cannot eliminate, prompt-injection risk. Hook
+provider/config/no-change failures are fail-open; unsafe message paths and file
+types fail closed.
 
-Repository content is untrusted input. Git external diff and text-conversion
-helpers are disabled, commands never use a shell, and prompt data is JSON
-encoded behind an explicit trust boundary. These controls reduce command and
-prompt-injection risk, but no prompt can make an LLM fully immune to adversarial
-repository content. Review generated messages before use.
+## Roadmap
+
+- See the prioritized [technical roadmap](docs/roadmap.md).
+- [ ] Interactive candidate selection and editing
+- [ ] Privacy-safe local response caching
+- [ ] Versioned third-party provider plugin SDK
+- [ ] Streaming UX where provider APIs support it
+- [ ] Signed artifacts, SBOM, and automated PyPI release workflow
+
+## Contributing
+
+Install `.[dev]`, run the quality commands above, and keep provider tests offline.
+Architecture decisions and extension guidance live in
+[docs/architecture.md](docs/architecture.md).
 
 ## License
 
-MIT
+[MIT](LICENSE)

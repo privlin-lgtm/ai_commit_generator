@@ -22,9 +22,14 @@ def test_classifies_unusual_paths(path: str, expected: str) -> None:
 
 def test_parses_binary_deleted_and_gitlink_records() -> None:
     analysis = GitNumstatParser().parse(
-        "-\t-\timage.PNG\0"
-        "0\t12\tdeleted.py\0"
-        "1\t1\tvendor/library\0"
+        "\0".join(
+            (
+                "-\t-\timage.PNG",
+                "0\t12\tdeleted.py",
+                "1\t1\tvendor/library",
+                "",
+            )
+        )
     )
 
     assert analysis.as_dict() == {
@@ -36,9 +41,7 @@ def test_parses_binary_deleted_and_gitlink_records() -> None:
 
 
 def test_parses_rename_with_unusual_destination() -> None:
-    analysis = GitNumstatParser().parse(
-        "0\t0\t\0old name.md\0new\tname\n.PY\0"
-    )
+    analysis = GitNumstatParser().parse("0\t0\t\0old name.md\0new\tname\n.PY\0")
 
     assert analysis.files_changed == 1
     assert analysis.file_types == ("py",)

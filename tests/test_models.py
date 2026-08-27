@@ -41,17 +41,13 @@ def test_git_diff_rejects_invalid_required_text(
 
 def test_git_diff_rejects_scalar_coercion() -> None:
     with pytest.raises(ValidationError):
-        GitDiff.model_validate(
-            {"content": 123, "staged": 1, "repository": "/repo"}
-        )
+        GitDiff.model_validate({"content": 123, "staged": 1, "repository": "/repo"})
 
 
 def test_commit_message_preserves_constructor_string_and_serialization() -> None:
     message = CommitMessage("feat(api)!: remove legacy endpoint", "BREAKING CHANGE: v1")
 
-    assert str(message) == (
-        "feat(api)!: remove legacy endpoint\n\nBREAKING CHANGE: v1"
-    )
+    assert str(message) == ("feat(api)!: remove legacy endpoint\n\nBREAKING CHANGE: v1")
     assert message.model_dump_json() == (
         '{"subject":"feat(api)!: remove legacy endpoint",'
         '"body":"BREAKING CHANGE: v1","style":"conventional"}'
