@@ -74,11 +74,11 @@ remain supported.
 
 CLI overrides:
 
-```powershell
+```shell
 commitgen generate --provider ollama --model llama3.2
 commitgen generate --style detailed --temperature 0.1 --max-tokens 1500
-commitgen generate --config .\team.commitgen.yaml
-commitgen config -C . --config .\team.commitgen.yaml
+commitgen generate --config ./team.commitgen.yaml
+commitgen config -C . --config ./team.commitgen.yaml
 ```
 
 The Git hook resolves configuration from the repository root at runtime.

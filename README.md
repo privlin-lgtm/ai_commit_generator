@@ -52,7 +52,7 @@ Typer, or HTTP transports. See the full [technical architecture](docs/architectu
 Requires Git and Python 3.10–3.13. This repository is not claiming a published
 PyPI release; install from a checkout:
 
-```powershell
+```shell
 python -m pip install .
 python -m pip install ".[anthropic]"      # Anthropic support
 python -m pip install ".[all-providers]"  # every optional provider
@@ -75,7 +75,15 @@ temperature: 0.2
 max_tokens: 1024
 ```
 
-Keep credentials in the environment, not YAML:
+Keep credentials in the environment, not YAML. macOS and Linux (bash/zsh):
+
+```bash
+export AI_COMMIT_PROVIDER="openai"
+export AI_COMMIT_API_KEY="..."
+export AI_COMMIT_MODEL="gpt-4o-mini"
+```
+
+Windows (PowerShell):
 
 ```powershell
 $env:AI_COMMIT_PROVIDER = "openai"
@@ -94,7 +102,7 @@ needs no key. See [configuration](docs/configuration.md).
 
 ## Usage
 
-```powershell
+```shell
 commitgen generate --style concise
 # Add JWT validation middleware
 
@@ -115,13 +123,14 @@ changes present in the selected diff.
 
 Install the managed hook:
 
-```powershell
-commitgen install-hook -C C:\path\to\repository
-commitgen install-hook -C C:\path\to\repository --force
+```shell
+commitgen install-hook -C /path/to/repository
+commitgen install-hook -C /path/to/repository --force
 ```
 
-`--force` preserves a foreign hook in a non-colliding backup. Set
-`COMMITGEN_SKIP=1` to skip generation for one commit. See
+On Windows, pass a Windows path such as `C:\path\to\repository`. `--force`
+preserves a foreign hook in a non-colliding backup. Set `COMMITGEN_SKIP=1` to
+skip generation for one commit (in bash: `COMMITGEN_SKIP=1 git commit`). See
 [Git hook integration](docs/hooks.md).
 
 ## Engineering highlights
@@ -137,7 +146,7 @@ commitgen install-hook -C C:\path\to\repository --force
 
 ## Testing and quality
 
-```powershell
+```shell
 ruff check .
 ruff format --check .
 mypy src

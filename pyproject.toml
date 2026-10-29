@@ -9,7 +9,7 @@ description = "Generate validated commit messages from Git diffs with local or r
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
-authors = [{ name = "AI Commit Generator contributors" }]
+authors = [{ name = "Paul Rivlin" }]
 keywords = ["git", "commit", "llm", "cli", "conventional-commits"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -45,6 +45,12 @@ dev = [
   "build>=1.2,<2",
   "pip-audit>=2.7,<3",
 ]
+
+[project.urls]
+Homepage = "https://github.com/privlin-lgtm/ai_commit_generator"
+Source = "https://github.com/privlin-lgtm/ai_commit_generator"
+Issues = "https://github.com/privlin-lgtm/ai_commit_generator/issues"
+Documentation = "https://github.com/privlin-lgtm/ai_commit_generator/tree/main/docs"
 
 [project.scripts]
 commitgen = "ai_commit_generator.cli:main"

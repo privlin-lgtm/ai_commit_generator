@@ -2,7 +2,7 @@
 
 The default suite runs deterministic unit and integration tests:
 
-```powershell
+```shell
 pytest --cov-fail-under=90
 ```
 
@@ -14,14 +14,14 @@ pytest --cov-fail-under=90
 
 Focused examples:
 
-```powershell
-pytest tests\test_llm_providers.py tests\test_commit_analyzer.py
-pytest tests\test_git_integration.py tests\test_generation_integration.py tests\test_git_hooks.py
+```shell
+pytest tests/test_llm_providers.py tests/test_commit_analyzer.py
+pytest tests/test_git_integration.py tests/test_generation_integration.py tests/test_git_hooks.py
 ```
 
 Full local quality gates:
 
-```powershell
+```shell
 ruff check .
 ruff format --check .
 mypy src
