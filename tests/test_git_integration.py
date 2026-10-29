@@ -278,6 +278,8 @@ def test_analyzes_gitlink_change(tmp_path: Path) -> None:
     _git(parent, "commit", "-am", "add submodule")
 
     checkout = parent / "vendor" / "library"
+    _git(checkout, "config", "user.name", "Test User")
+    _git(checkout, "config", "user.email", "test@example.com")
     (checkout / "content.txt").write_text("two\n", encoding="utf-8")
     _git(checkout, "add", ".")
     _git(checkout, "commit", "-m", "second")
