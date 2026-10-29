@@ -45,3 +45,16 @@ def test_architecture_mermaid_fences_are_balanced() -> None:
     architecture = (ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")
     assert architecture.count("```mermaid") == 8
     assert architecture.count("```") % 2 == 0
+
+
+def test_release_workflow_uses_trusted_publishing() -> None:
+    workflow = yaml.safe_load(
+        (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    )
+    job = workflow["jobs"]["publish"]
+    rendered = json.dumps(job)
+
+    assert job["permissions"]["id-token"] == "write"
+    assert job["environment"]["name"] == "pypi"
+    assert "pypa/gh-action-pypi-publish" in rendered
+    assert "password" not in rendered

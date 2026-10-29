@@ -49,8 +49,9 @@ Typer, or HTTP transports. See the full [technical architecture](docs/architectu
 
 ## Installation
 
-Requires Git and Python 3.10–3.13. This repository is not claiming a published
-PyPI release; install from a checkout:
+Requires Git and Python 3.10–3.13. The package is named `commitgen-cli` on
+PyPI and installs the `commitgen` command. Until the first release is
+published, install from a checkout:
 
 ```shell
 python -m pip install .
@@ -178,7 +179,8 @@ types fail closed.
 - [ ] Privacy-safe local response caching
 - [ ] Versioned third-party provider plugin SDK
 - [ ] Streaming UX where provider APIs support it
-- [ ] Signed artifacts, SBOM, and automated PyPI release workflow
+- [x] Tag-triggered PyPI release workflow with trusted publishing ([releasing](docs/releasing.md))
+- [ ] Signed artifacts and SBOM
 
 ## Contributing
 
