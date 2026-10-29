@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: pypi
+      url: https://pypi.org/project/commitgen-cli/
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: python -m pip install build
+      - name: Check the tag matches the package version
+        shell: python
+        run: |
+          import os, re, tomllib
+          tag = os.environ["GITHUB_REF_NAME"].removeprefix("v")
+          with open("pyproject.toml", "rb") as f:
+              project = tomllib.load(f)["project"]["version"]
+          with open("src/ai_commit_generator/__init__.py", encoding="utf-8") as f:
+              module = re.search(r'__version__ = "([^"]+)"', f.read()).group(1)
+          if not tag == project == module:
+              raise SystemExit(
+                  f"tag {tag}, pyproject.toml {project} and __version__ {module} must match"
+              )
+      - run: python -m build
+      - run: python -m pip install dist/*.whl && commitgen --help
+      - uses: pypa/gh-action-pypi-publish@release/v1

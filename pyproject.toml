@@ -3,7 +3,7 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ai-commit-generator"
+name = "commitgen-cli"
 version = "0.5.0"
 description = "Generate validated commit messages from Git diffs with local or remote LLM providers."
 readme = "README.md"

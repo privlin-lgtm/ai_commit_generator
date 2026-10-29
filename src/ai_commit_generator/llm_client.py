@@ -389,7 +389,7 @@ def _import_optional(module: str, extra: str) -> Any:
         return import_module(module)
     except ImportError as exc:
         raise LLMMissingDependencyError(
-            f"Install ai-commit-generator[{extra}] to use this provider"
+            f"Install commitgen-cli[{extra}] to use this provider"
         ) from exc
 
 
