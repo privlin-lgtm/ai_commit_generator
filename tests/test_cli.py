@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -48,6 +49,32 @@ def test_config_masks_api_key() -> None:
     assert "API key configured" in result.stdout
     assert "yes" in result.stdout
     assert "test-key" not in result.stdout
+
+
+@pytest.mark.parametrize(
+    ("temperature", "shown"),
+    [(None, "Provider default"), (0.4, "0.4")],
+)
+def test_config_shows_temperature_or_provider_default(
+    temperature: float | None,
+    shown: str,
+) -> None:
+    deps = replace(
+        _dependencies(),
+        settings_loader=lambda repository, config_path, overrides: Settings(
+            temperature=temperature,
+        ),
+    )
+    app = create_app(deps)
+
+    result = runner.invoke(app, ["config"])
+
+    assert result.exit_code == 0
+    temperature_row = next(
+        line for line in result.stdout.splitlines() if "Temperature" in line
+    )
+    assert shown in temperature_row
+    assert "gpt-6-luna" in result.stdout
 
 
 def test_styles_lists_available_styles() -> None:

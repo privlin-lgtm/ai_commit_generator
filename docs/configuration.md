@@ -23,9 +23,8 @@ or unknown settings.
 
 ```yaml
 default_style: conventional
-model: gpt-4o-mini
-temperature: 0.2
-max_tokens: 1024
+model: gpt-6-luna
+max_tokens: 4096
 max_diff_chars: 60000
 max_response_chars: 20000
 max_body_chars: 10000
@@ -61,8 +60,14 @@ Authenticated remote endpoints require HTTPS; HTTP is allowed only for loopback.
 All URLs must be credential-free and contain no query string or fragment. Remote
 Ollama requires trusted `AI_COMMIT_ALLOW_REMOTE_OLLAMA=true`; repository YAML
 cannot enable it. DNS rebinding cannot be fully prevented, so endpoint ownership
-remains an operator responsibility. Defaults: OpenAI, Conventional style, `gpt-4o-mini`, temperature
-`0.2`, 1,024 tokens, 30-second timeout, and one attempt.
+remains an operator responsibility. Defaults: OpenAI, Conventional style, `gpt-6-luna`, the provider's default
+temperature, 4,096 output tokens, 30-second timeout, and one attempt.
+
+Temperature is sent only when you set it. Reasoning models such as
+`gpt-6-luna`, and Claude Sonnet 5.5, reject non-default sampling values, so
+leave it unset for them. `max_tokens` is the whole output budget: OpenAI and
+Azure receive it as `max_completion_tokens`, which also covers hidden
+reasoning tokens, so keep it well above the length of a commit message.
 
 Environment variables use uppercase field names, including
 `AI_COMMIT_PROVIDER`, `AI_COMMIT_DEFAULT_STYLE`, `AI_COMMIT_TEMPERATURE`,

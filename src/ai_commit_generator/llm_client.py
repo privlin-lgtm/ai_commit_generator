@@ -100,10 +100,12 @@ class OpenAIProvider(BaseLLMProvider):
     def _generate(self, system_prompt: str, user_prompt: str) -> str:
         try:
             response = self._client.chat.completions.create(
-                model=self._model,
-                messages=_chat_messages(system_prompt, user_prompt),
-                temperature=self._temperature,
-                max_tokens=self._max_tokens,
+                **_openai_request(
+                    self._model,
+                    _chat_messages(system_prompt, user_prompt),
+                    self._temperature,
+                    self._max_tokens,
+                )
             )
         except Exception as exc:
             raise _map_sdk_error(exc) from exc
@@ -130,10 +132,12 @@ class AzureOpenAIProvider(BaseLLMProvider):
     def _generate(self, system_prompt: str, user_prompt: str) -> str:
         try:
             response = self._client.chat.completions.create(
-                model=self._deployment,
-                messages=_chat_messages(system_prompt, user_prompt),
-                temperature=self._temperature,
-                max_tokens=self._max_tokens,
+                **_openai_request(
+                    self._deployment,
+                    _chat_messages(system_prompt, user_prompt),
+                    self._temperature,
+                    self._max_tokens,
+                )
             )
         except Exception as exc:
             raise _map_sdk_error(exc) from exc
@@ -163,9 +167,10 @@ class AnthropicProvider(BaseLLMProvider):
         kwargs: dict[str, object] = {
             "model": self._model,
             "max_tokens": self._max_tokens,
-            "temperature": self._temperature,
             "messages": [{"role": "user", "content": user_prompt}],
         }
+        if self._temperature is not None:
+            kwargs["temperature"] = self._temperature
         if system_prompt:
             kwargs["system"] = system_prompt
         try:
@@ -283,16 +288,16 @@ class OllamaProvider(BaseLLMProvider):
         self._max_response_bytes = max_response_bytes
 
     def _generate(self, system_prompt: str, user_prompt: str) -> str:
+        options: dict[str, object] = {"num_predict": self._max_tokens}
+        if self._temperature is not None:
+            options["temperature"] = self._temperature
         response = self._transport.post_json(
             self._url,
             {
                 "model": self._model,
                 "messages": _chat_messages(system_prompt, user_prompt),
                 "stream": False,
-                "options": {
-                    "temperature": self._temperature,
-                    "num_predict": self._max_tokens,
-                },
+                "options": options,
             },
             timeout=self._timeout,
             max_response_bytes=self._max_response_bytes,
@@ -366,6 +371,29 @@ def _chat_messages(
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": user_prompt})
     return messages
+
+
+def _openai_request(
+    model: str,
+    messages: list[dict[str, str]],
+    temperature: float | None,
+    max_tokens: int,
+) -> dict[str, object]:
+    """Build chat-completions arguments accepted by current OpenAI models.
+
+    ``max_completion_tokens`` replaces the deprecated ``max_tokens`` and also
+    bounds reasoning tokens; reasoning models reject ``max_tokens`` outright.
+    Temperature is omitted unless configured, because reasoning models only
+    accept their default sampling.
+    """
+    request: dict[str, object] = {
+        "model": model,
+        "messages": messages,
+        "max_completion_tokens": max_tokens,
+    }
+    if temperature is not None:
+        request["temperature"] = temperature
+    return request
 
 
 def _openai_text(response: object) -> str:

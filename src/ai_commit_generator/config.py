@@ -22,6 +22,8 @@ from yaml.nodes import MappingNode, Node
 from ai_commit_generator.models import CommitStyle
 
 MAX_CONFIG_BYTES = 65_536
+DEFAULT_MODEL = "gpt-6-luna"
+DEFAULT_MAX_TOKENS = 4_096
 REPOSITORY_CONFIG_KEYS = frozenset(
     {
         "default_style",
@@ -63,15 +65,20 @@ class Settings(BaseSettings):
 
     provider: ProviderName = ProviderName.OPENAI
     default_style: CommitStyle = CommitStyle.CONVENTIONAL
-    model: str = Field(default="gpt-4o-mini", min_length=1, max_length=200)
-    temperature: float = Field(default=0.2, ge=0, le=2)
-    max_tokens: int = Field(default=1_024, ge=1, le=32_768)
+    model: str = Field(default=DEFAULT_MODEL, min_length=1, max_length=200)
+    # None means "use the provider's default sampling". Current reasoning
+    # models (for example gpt-6-luna) and Claude Sonnet 5.5 reject explicit
+    # non-default temperatures, so it is only sent when a user sets it.
+    temperature: float | None = Field(default=None, ge=0, le=2)
+    # Output budget, including any hidden reasoning tokens a model spends
+    # before writing the message; a commit message itself is far shorter.
+    max_tokens: int = Field(default=DEFAULT_MAX_TOKENS, ge=1, le=32_768)
     api_key: SecretStr | None = None
     anthropic_api_key: SecretStr | None = None
     azure_api_key: SecretStr | None = None
     base_url: str | None = None
     azure_endpoint: str | None = None
-    azure_deployment: str = "gpt-4o-mini"
+    azure_deployment: str = DEFAULT_MODEL
     azure_api_version: str = "2024-10-21"
     ollama_base_url: str = "http://localhost:11434"
     allow_remote_ollama: bool = False
