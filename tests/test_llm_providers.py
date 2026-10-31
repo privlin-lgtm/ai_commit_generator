@@ -84,8 +84,32 @@ def test_openai_adapters_preserve_roles_and_generation_settings(
         "deployment" if provider_type is AzureOpenAIProvider else "model"
     )
     assert create.kwargs["temperature"] == 0.7
-    assert create.kwargs["max_tokens"] == 321
+    assert create.kwargs["max_completion_tokens"] == 321
+    assert "max_tokens" not in create.kwargs
     assert provider.generate("single") == "result"
+
+
+@pytest.mark.parametrize(
+    "provider_type",
+    [OpenAIProvider, AzureOpenAIProvider],
+)
+def test_openai_adapters_omit_temperature_unless_configured(
+    provider_type: type[BaseLLMProvider],
+) -> None:
+    client, create = _openai_client()
+    values: dict[str, object] = {"api_key": "secret"}
+    if provider_type is AzureOpenAIProvider:
+        values.update(
+            provider="azure-openai",
+            azure_endpoint="https://example.azure.com",
+        )
+    provider = provider_type(Settings.model_validate(values), client)
+
+    assert provider.complete("system", "user") == "result"
+    assert "temperature" not in create.kwargs
+    assert "max_tokens" not in create.kwargs
+    assert create.kwargs["model"] == "gpt-6-luna"
+    assert create.kwargs["max_completion_tokens"] == 4_096
 
 
 def test_anthropic_extracts_multiple_text_blocks() -> None:
@@ -110,7 +134,29 @@ def test_anthropic_extracts_multiple_text_blocks() -> None:
     assert provider.complete("system", "user") == "first second"
     assert create.kwargs["system"] == "system"
     assert create.kwargs["messages"] == [{"role": "user", "content": "user"}]
-    assert create.kwargs["max_tokens"] == 1_024
+    assert create.kwargs["max_tokens"] == 4_096
+    assert "temperature" not in create.kwargs
+
+
+def test_anthropic_sends_temperature_only_when_configured() -> None:
+    create = FakeCreate(
+        SimpleNamespace(content=[SimpleNamespace(type="text", text="ok")])
+    )
+    provider = AnthropicProvider(
+        Settings(
+            anthropic_api_key="secret",
+            provider="anthropic",
+            model="claude",
+            temperature=0.3,
+            max_tokens=512,
+        ),
+        SimpleNamespace(messages=create),
+    )
+
+    assert provider.generate("user") == "ok"
+    assert create.kwargs["temperature"] == 0.3
+    assert create.kwargs["max_tokens"] == 512
+    assert "system" not in create.kwargs
 
 
 class FakeTransport:
@@ -149,6 +195,21 @@ def test_ollama_uses_chat_transport_without_key() -> None:
     ]
     assert timeout == 4
     assert limit == 123
+    assert payload["options"] == {"num_predict": 4_096}
+
+
+def test_ollama_sends_temperature_when_configured() -> None:
+    transport = FakeTransport({"message": {"content": "local result"}})
+    provider = OllamaProvider(
+        Settings(provider="ollama", model="llama3", temperature=0.1, max_tokens=64),
+        transport,
+    )
+
+    assert provider.generate("user") == "local result"
+    assert transport.calls[0][1]["options"] == {
+        "num_predict": 64,
+        "temperature": 0.1,
+    }
 
 
 @pytest.mark.parametrize(

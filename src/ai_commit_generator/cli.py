@@ -246,7 +246,12 @@ def create_app(dependencies: CliDependencies | None = None) -> typer.Typer:
             else settings.base_url
         )
         table.add_row("Endpoint", endpoint or "Provider default")
-        table.add_row("Temperature", f"{settings.temperature:g}")
+        table.add_row(
+            "Temperature",
+            "Provider default"
+            if settings.temperature is None
+            else f"{settings.temperature:g}",
+        )
         table.add_row("Maximum tokens", str(settings.max_tokens))
         table.add_row("Timeout", f"{settings.timeout_seconds:g}s")
         table.add_row("Maximum diff", f"{settings.max_diff_chars} characters")
