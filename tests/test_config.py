@@ -18,9 +18,10 @@ def test_defaults_allow_safe_configuration_inspection() -> None:
 
     assert settings.provider is ProviderName.OPENAI
     assert settings.default_style is CommitStyle.CONVENTIONAL
-    assert settings.model == "gpt-4o-mini"
-    assert settings.temperature == 0.2
-    assert settings.max_tokens == 1_024
+    assert settings.model == "gpt-6-luna"
+    assert settings.azure_deployment == "gpt-6-luna"
+    assert settings.temperature is None
+    assert settings.max_tokens == 4_096
     assert not settings.api_key_configured
     assert "SecretStr" not in repr(settings)
 
@@ -30,7 +31,7 @@ def test_explicit_empty_environment_ignores_ambient_values(
 ) -> None:
     monkeypatch.setenv("AI_COMMIT_MODEL", "ambient-model")
 
-    assert load_settings(environ={}).model == "gpt-4o-mini"
+    assert load_settings(environ={}).model == "gpt-6-luna"
 
 
 def test_environment_compatibility() -> None:
@@ -71,7 +72,7 @@ def test_cli_yaml_environment_default_precedence(tmp_path: Path) -> None:
 def test_missing_default_is_normal_but_missing_explicit_is_error(
     tmp_path: Path,
 ) -> None:
-    assert load_settings(repository=tmp_path, environ={}).model == "gpt-4o-mini"
+    assert load_settings(repository=tmp_path, environ={}).model == "gpt-6-luna"
     with pytest.raises(ConfigurationError, match="not found"):
         load_settings(
             repository=tmp_path,

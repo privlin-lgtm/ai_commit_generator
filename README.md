@@ -72,8 +72,7 @@ walks parent directories.
 ```yaml
 model: llama3.2
 default_style: conventional
-temperature: 0.2
-max_tokens: 1024
+max_tokens: 4096
 ```
 
 Keep credentials in the environment, not YAML. macOS and Linux (bash/zsh):
@@ -81,7 +80,7 @@ Keep credentials in the environment, not YAML. macOS and Linux (bash/zsh):
 ```bash
 export AI_COMMIT_PROVIDER="openai"
 export AI_COMMIT_API_KEY="..."
-export AI_COMMIT_MODEL="gpt-4o-mini"
+export AI_COMMIT_MODEL="gpt-6-luna"
 ```
 
 Windows (PowerShell):
@@ -89,7 +88,7 @@ Windows (PowerShell):
 ```powershell
 $env:AI_COMMIT_PROVIDER = "openai"
 $env:AI_COMMIT_API_KEY = "..."
-$env:AI_COMMIT_MODEL = "gpt-4o-mini"
+$env:AI_COMMIT_MODEL = "gpt-6-luna"
 ```
 
 Auto-discovered repository YAML accepts generation preferences only. Set
@@ -113,7 +112,7 @@ commitgen generate --style conventional
 commitgen generate --style detailed
 # Implement JWT validation middleware and protect API endpoints.
 
-commitgen generate --provider anthropic --model claude-sonnet-4-5
+commitgen generate --provider anthropic --model claude-sonnet-5-5
 commitgen generate --provider ollama --model llama3.2
 commitgen styles
 commitgen config
